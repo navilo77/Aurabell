@@ -1,0 +1,233 @@
+﻿AURA BELL — PROJECT VISION
+প্রকল্পের নাম: Aura Bell
+ডকুমেন্টের নাম: Project Vision
+ডকুমেন্ট কোড: AB-PV-001
+সংস্করণ: 1.0
+তারিখ: ০৪ নভেম্বর ২০২৬
+প্রধান বাজার: বাংলাদেশ
+প্রকল্পের ধরন: Multi-Store E-commerce Platform
+________________
+
+
+১. প্রকল্প পরিচিতি (Project Overview)
+Aura Bell হলো বাংলাদেশের বাজারের জন্য পরিকল্পিত একটি আধুনিক Multi-Store E-commerce Platform।
+এর মাধ্যমে একটি কেন্দ্রীয় প্ল্যাটফর্মের অধীনে একাধিক স্বতন্ত্র অনলাইন স্টোর পরিচালনা করা যাবে।
+প্রাথমিকভাবে দুটি স্টোর নিয়ে যাত্রা শুরু হবে:
+1. Best Gadget — মোবাইল, গ্যাজেট ও ইলেকট্রনিক পণ্য।
+2. Aura Skin Care — স্কিন কেয়ার ও বিউটি পণ্য।
+প্রতিটি স্টোরের নিজস্ব পণ্য, ক্যাটাগরি, মূল্য, নীতিমালা ও ইনভেন্টরি থাকবে। তবে গ্রাহক একটি অ্যাকাউন্ট ব্যবহার করে সব স্টোর থেকে পণ্য কিনতে পারবেন।
+২. প্রকল্পের লক্ষ্য ও উদ্দেশ্য (Vision & Mission)
+Vision
+বাংলাদেশের জন্য একটি বিশ্বস্ত, নিরাপদ, সম্প্রসারণযোগ্য এবং গ্রাহকবান্ধব Multi-Store E-commerce Ecosystem তৈরি করা।
+Mission
+* এক প্ল্যাটফর্মে একাধিক স্টোর পরিচালনা।
+* গ্রাহকের জন্য সহজ ও স্বচ্ছ কেনাকাটার অভিজ্ঞতা।
+* পণ্যের সত্যতা ও মান নিশ্চিত করা।
+* সঠিক Inventory Management তৈরি করা।
+* নিরাপদ Payment ও Order Processing নিশ্চিত করা।
+* ভবিষ্যতে নতুন স্টোর ও ব্যবসায়িক মডেল যুক্ত করার সুযোগ রাখা।
+৩. মূল নীতিমালা (Core Principles)
+Aura Bell-এর প্রতিটি সিদ্ধান্ত নিচের নীতিগুলোর সঙ্গে সামঞ্জস্যপূর্ণ হতে হবে:
+1. গ্রাহকের বিশ্বাস ও নিরাপত্তা।
+2. পণ্যের সত্যতা ও সঠিক তথ্য।
+3. সঠিক স্টক ব্যবস্থাপনা।
+4. স্বচ্ছ মূল্য ও Checkout।
+5. ব্যক্তিগত তথ্যের গোপনীয়তা।
+6. সহজে রক্ষণাবেক্ষণযোগ্য প্রযুক্তি।
+7. ভবিষ্যৎ সম্প্রসারণের উপযোগী কাঠামো।
+8. অপ্রয়োজনীয় প্রযুক্তিগত জটিলতা পরিহার।
+৪. স্টোর ব্যবস্থাপনা (Store Structure)
+স্টোর
+	ব্যবসার ধরন
+	বিশেষ ব্যবস্থাপনা
+	Best Gadget
+	ইলেকট্রনিক্স ও গ্যাজেট
+	Warranty, Serial/IMEI
+	Aura Skin Care
+	স্কিন কেয়ার
+	Batch, Expiry, Ingredients
+	প্রতিটি স্টোরের আলাদা পরিচিতি, পণ্য, ক্যাটাগরি ও Return Policy থাকবে।
+তবে Customer Account, Cart, Checkout এবং Order Management কেন্দ্রীয়ভাবে পরিচালিত হবে।
+৫. প্রথম সংস্করণের কার্যপরিধি (V1 Scope)
+৫.১ গ্রাহক ব্যবস্থা
+* Registration ও Login।
+* Customer Profile।
+* একাধিক Delivery Address।
+* Product Browsing ও Search।
+* Product Details ও Variants।
+* Shared Shopping Cart।
+* Single Checkout।
+* Order History।
+* Order Tracking।
+* Cancellation Request।
+* Return Request।
+* Customer Support History।
+* বাংলা ও ইংরেজি ভাষা।
+৫.২ অর্ডার ব্যবস্থা
+একজন গ্রাহক একই Checkout-এ একাধিক স্টোর থেকে পণ্য কিনতে পারবেন।
+উদাহরণ:
+একজন গ্রাহক Best Gadget থেকে একটি ফোন এবং Aura Skin Care থেকে একটি ফেসওয়াশ কিনলেন।
+সিস্টেম তৈরি করবে:
+* একটি Parent Order।
+* Best Gadget-এর জন্য একটি Store Order।
+* Aura Skin Care-এর জন্য একটি Store Order।
+* প্রয়োজন অনুযায়ী এক বা একাধিক Shipment।
+৫.৩ পেমেন্ট ব্যবস্থা
+প্রাথমিকভাবে:
+* Cash on Delivery (COD)।
+* একটি নির্বাচিত Online Payment Gateway।
+Payment Gateway পরবর্তীতে ব্যবসায়িক প্রয়োজন ও যাচাইয়ের ভিত্তিতে নির্বাচন করা হবে।
+৫.৪ ইনভেন্টরি ব্যবস্থা
+* Central Inventory Management।
+* Stock Reservation।
+* Stock Movement History।
+* Overselling Prevention।
+* Offline Sale হলে Admin Panel থেকে Stock Update।
+* Reservation মেয়াদ শেষ হলে Stock Release।
+* পণ্যের Batch ও Expiry Management।
+* প্রয়োজন অনুযায়ী Gadget Serial/IMEI Management।
+৫.৫ অ্যাডমিন প্যানেল
+Admin Panel থেকে পরিচালনা করা যাবে:
+* Store Management।
+* Product Management।
+* Category Management।
+* Inventory Management।
+* Order Management।
+* Payment Status।
+* Shipment Management।
+* Return ও Refund।
+* Customer Support।
+* Sales Reports।
+* Stock Reports।
+* Payment Reconciliation।
+* Gross Margin ও Profit Reports।
+* Admin ও Owner Permissions।
+৬. গুরুত্বপূর্ণ ব্যবসায়িক নিয়ম (Business Rules)
+1. ওয়েবসাইটের Inventory হবে মূল Stock Record।
+2. Checkout-এর সময় Backend পুনরায় পণ্যের মূল্য যাচাই করবে।
+3. Frontend থেকে পাঠানো মূল্যকে চূড়ান্ত মূল্য হিসেবে গ্রহণ করা যাবে না।
+4. Stock Reservation ছাড়া অর্ডার নিশ্চিত করা যাবে না।
+5. Order, Payment ও Shipment Status আলাদা রাখতে হবে।
+6. Payment Webhook যাচাই করতে হবে।
+7. Duplicate Webhook থেকে যেন দ্বিতীয়বার একই কাজ না হয়।
+8. Order Item-এ পণ্যের নাম, SKU ও মূল্য Snapshot হিসেবে সংরক্ষণ করতে হবে।
+9. প্রতিটি স্টোরের Return Policy আলাদা হতে পারবে।
+10. Checkout-এর আগেই Delivery Charge দেখাতে হবে।
+11. প্রতিটি Stock Movement-এর ইতিহাস সংরক্ষণ করতে হবে।
+12. Refund ও Payment Reconciliation-এর রেকর্ড রাখতে হবে।
+৭. প্রথম সংস্করণে যা থাকবে না (Out of Scope)
+V1-এ নিচের বিষয়গুলো তৈরি করা হবে না:
+* Open Marketplace।
+* Seller Self-Registration।
+* Seller Dashboard।
+* Seller Commission Settlement।
+* Native Android Application।
+* Native iOS Application।
+* AI Shopping Assistant।
+* Live Chat System।
+* সম্পূর্ণ Automated Courier System।
+* Microservices Architecture।
+* Kubernetes ও Kafka Infrastructure।
+* জটিল Plugin Framework।
+প্রয়োজন ও ব্যবসায়িক সক্ষমতা তৈরি হলে ভবিষ্যতে এগুলো বিবেচনা করা হবে।
+৮. প্রযুক্তিগত ভিত্তি (Technology Foundation)
+স্তর
+	নির্বাচিত প্রযুক্তি
+	Frontend
+	Next.js
+	UI
+	React
+	Programming Language
+	TypeScript
+	Styling
+	Tailwind CSS
+	Backend
+	FastAPI
+	Database
+	Supabase PostgreSQL
+	Authentication
+	Supabase Auth
+	File Storage
+	Supabase Storage
+	API
+	REST API
+	API Documentation
+	OpenAPI
+	Version Control
+	GitHub
+	Architecture Decision
+Aura Bell-এর প্রাথমিক Architecture হবে Modular Monolith।
+অর্থাৎ, একটি কেন্দ্রীয় Backend Application থাকবে, কিন্তু প্রতিটি Business Module আলাদাভাবে সংগঠিত থাকবে।
+এতে একজন Developer-এর পক্ষে সিস্টেম তৈরি, পরীক্ষা ও রক্ষণাবেক্ষণ করা সহজ হবে।
+৯. উন্নয়ন পরিকল্পনা (Development Roadmap)
+Phase 1 — Initial Launch
+* Project Foundation।
+* Authentication।
+* Storefront।
+* Product Catalogue।
+* Inventory।
+* Cart ও Checkout।
+* Order Management।
+* Payment Integration।
+* Manual Courier Management।
+* Admin Panel।
+* Basic Reporting।
+Phase 2 — Operational Improvement
+* Courier API Integration।
+* Automated Notifications।
+* Advanced Role Management।
+* Advanced Reports।
+* Payment Reconciliation Automation।
+* Improved Customer Experience।
+Phase 3 — Business Expansion
+* Android ও iOS Application।
+* Verified Seller Onboarding।
+* Seller Dashboard।
+* Commission Management।
+* Advanced Analytics।
+* AI-based Business Automation।
+* প্রয়োজন অনুযায়ী Architecture Expansion।
+১০. ভবিষ্যৎ সম্প্রসারণ (Future Vision)
+Aura Bell-এর কাঠামো এমনভাবে তৈরি করা হবে, যাতে ভবিষ্যতে নতুন স্টোর যুক্ত করা যায়।
+সম্ভাব্য ভবিষ্যৎ স্টোর:
+* Fashion Store।
+* Home & Living Store।
+* Health & Wellness Store।
+* Lifestyle Store।
+* Technology Store।
+ভবিষ্যতে AI ব্যবহার করে:
+* Customer Support।
+* Product Recommendation।
+* Smart Search।
+* Sales Analysis।
+* Demand Forecasting।
+তবে AI-এর মাধ্যমে কোনো গুরুত্বপূর্ণ Financial Action, যেমন Refund বা বিশেষ Discount, অনুমোদন ছাড়া সম্পন্ন করা যাবে না।
+১১. সফলতার মানদণ্ড (Success Criteria)
+Aura Bell-এর প্রথম সংস্করণ সফল বলে বিবেচিত হবে যদি:
+1. একাধিক স্টোর একই প্ল্যাটফর্মে পরিচালনা করা যায়।
+2. একজন গ্রাহক একটি Checkout-এ একাধিক স্টোর থেকে পণ্য কিনতে পারেন।
+3. Inventory সঠিকভাবে পরিচালিত হয়।
+4. একই পণ্য ভুল করে একাধিকবার বিক্রি না হয়।
+5. Payment Event নিরাপদে পরিচালিত হয়।
+6. Admin সহজে Order, Payment ও Shipment পরিচালনা করতে পারেন।
+7. গ্রাহক স্বচ্ছ মূল্য ও Delivery Information পান।
+8. সিস্টেম নিরাপদ ও রক্ষণাবেক্ষণযোগ্য থাকে।
+১২. প্রকল্প পরিচালনা ও সিদ্ধান্ত (Project Governance)
+* প্রকল্পের মালিক ব্যবসায়িক ও পণ্যসংক্রান্ত চূড়ান্ত সিদ্ধান্ত নেবেন।
+* এই Vision Document হবে প্রকল্পের মূল নির্দেশনামূলক দলিল।
+* System Architecture ও Database Design এই Vision-এর সঙ্গে সামঞ্জস্যপূর্ণ হতে হবে।
+* নতুন Feature যুক্ত করার আগে সেটি V1-এর প্রয়োজন নাকি ভবিষ্যৎ পরিকল্পনা, তা নির্ধারণ করতে হবে।
+* অপ্রয়োজনীয় জটিলতা ও খরচ এড়িয়ে চলতে হবে।
+________________
+
+
+১৩. চূড়ান্ত ঘোষণা (Project Declaration)
+Aura Bell শুধুমাত্র একটি অনলাইন শপ নয়। এটি একটি সম্প্রসারণযোগ্য Multi-Store E-commerce Ecosystem।
+প্রথমে নিজস্ব স্টোর ও ইনভেন্টরি দিয়ে কার্যক্রম শুরু হবে। পরবর্তীতে যাচাইকৃত Seller, নতুন Store এবং উন্নত প্রযুক্তি যুক্ত করার সুযোগ থাকবে।
+মূল লক্ষ্য: Trust, Simplicity, Control, Scalability এবং Sustainable Growth।
+________________
+
+
+Document Status: Version 1.0 — Project Reference
+Document Code: AB-PV-001
+Project: Aura Bell

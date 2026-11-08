@@ -1,0 +1,1250 @@
+﻿AURA BELL — SYSTEM ARCHITECTURE
+প্রকল্প: Aura Bell
+ডকুমেন্ট কোড: AB-SA-001
+সংস্করণ: 1.0
+তারিখ: ০৪ নভেম্বর ২০২৬
+ডকুমেন্টের ভাষা: বাংলা
+Architecture Type: Modular Monolith
+প্রধান বাজার: বাংলাদেশ
+________________
+
+
+১. সিস্টেম আর্কিটেকচার পরিচিতি
+Aura Bell একটি Multi-Store E-commerce Platform। এর জন্য এমন একটি প্রযুক্তিগত কাঠামো তৈরি করা হবে, যেখানে একাধিক স্টোর, গ্রাহক, পণ্য, ইনভেন্টরি, অর্ডার, পেমেন্ট ও ডেলিভারি একটি কেন্দ্রীয় সিস্টেমের অধীনে কাজ করবে।
+প্রাথমিক Architecture হবে Modular Monolith।
+এর অর্থ:
+* একটি কেন্দ্রীয় Backend Application থাকবে।
+* একটি কেন্দ্রীয় PostgreSQL Database থাকবে।
+* প্রতিটি Business Module-এর নিজস্ব দায়িত্ব থাকবে।
+* Module-গুলোর মধ্যে নির্ধারিত নিয়মে যোগাযোগ হবে।
+* ভবিষ্যতে প্রয়োজন হলে নির্দিষ্ট Module আলাদা Service করা যাবে।
+প্রথম থেকেই Microservices তৈরি করা হবে না।
+২. নির্বাচিত প্রযুক্তি (Technology Stack)
+স্তর
+	প্রযুক্তি
+	দায়িত্ব
+	Frontend
+	Next.js
+	ওয়েবসাইট ও Admin Panel
+	UI
+	React
+	User Interface
+	Language
+	TypeScript
+	Frontend Development
+	Styling
+	Tailwind CSS
+	Design System
+	Backend
+	FastAPI
+	Business Logic ও API
+	Database
+	PostgreSQL
+	মূল ডেটা সংরক্ষণ
+	Authentication
+	Supabase Auth
+	User Authentication
+	Storage
+	Supabase Storage
+	ছবি ও ফাইল
+	API Documentation
+	OpenAPI
+	API Documentation
+	Version Control
+	GitHub
+	Source Code
+	Web Hosting
+	Vercel বা সমমানের সেবা
+	Frontend Hosting
+	API Hosting
+	Render বা সমমানের সেবা
+	Backend Hosting
+	৩. High-Level Architecture
+                CUSTOMERS / ADMIN
+                         |
+                         v
+                  NEXT.JS FRONTEND
+                         |
+                         v
+                   FASTAPI BACKEND
+                         |
+          +--------------+--------------+
+          |              |              |
+          v              v              v
+      PostgreSQL    Supabase Auth   Supabase Storage
+          |
+          |
+    +-----+----------------------------------+
+    |             |             |            |
+    v             v             v            v
+  Payment       Courier     Notification   Worker
+  Provider      Provider      Provider
+
+
+৩.১ Frontend
+Next.js দিয়ে তৈরি হবে:
+* Best Gadget Storefront।
+* Aura Skin Care Storefront।
+* Shared Customer Account।
+* Shared Shopping Cart।
+* Checkout Interface।
+* Customer Dashboard।
+* Admin Dashboard।
+একই Frontend Application-এর মধ্যে Store অনুযায়ী আলাদা Design, Branding ও Configuration ব্যবহার করা যাবে।
+৩.২ Backend
+FastAPI হবে কেন্দ্রীয় Business Logic Layer।
+Frontend সরাসরি গুরুত্বপূর্ণ Database Operation করবে না।
+নিচের কাজগুলো Backend-এর মাধ্যমে সম্পন্ন হবে:
+* Price Calculation।
+* Stock Validation।
+* Stock Reservation।
+* Order Creation।
+* Payment Processing।
+* Refund Processing।
+* Role Permission Validation।
+* Reporting।
+৩.৩ Database
+Supabase PostgreSQL হবে মূল Database।
+সব Business Module একই Database ব্যবহার করবে, তবে প্রতিটি Module-এর Table ও Business Logic নির্দিষ্টভাবে সংগঠিত থাকবে।
+৪. Backend Module Architecture
+Backend-এর মধ্যে নিচের Module থাকবে।
+৪.১ Identity Module
+দায়িত্ব:
+* User Profile।
+* Authentication।
+* Role Management।
+* Permission Management।
+* Store-level Access।
+* Customer Address।
+৪.২ Store Module
+দায়িত্ব:
+* Store Creation।
+* Store Configuration।
+* Store Status।
+* Store Branding।
+* Store Policies।
+* Store-specific Settings।
+প্রাথমিক Store:
+* Best Gadget।
+* Aura Skin Care।
+৪.৩ Catalog Module
+দায়িত্ব:
+* Product Management।
+* Category Management।
+* Product Variants।
+* SKU Management।
+* Product Images।
+* Product Attributes।
+বিশেষ নিয়ম:
+Skincare-এর জন্য Batch ও Expiry Information প্রয়োজন হতে পারে।
+Gadget-এর জন্য Warranty ও প্রয়োজন অনুযায়ী Serial/IMEI Information থাকতে পারে।
+৪.৪ Pricing Module
+দায়িত্ব:
+* Product Price।
+* Discount।
+* Promotion।
+* Price Validation।
+* Checkout Calculation।
+গুরুত্বপূর্ণ নিয়ম:
+Frontend থেকে পাঠানো Price কখনো চূড়ান্ত Price হিসেবে বিশ্বাস করা যাবে না।
+Backend Database থেকে বর্তমান Price যাচাই করবে।
+৪.৫ Inventory Module
+দায়িত্ব:
+* Stock Balance।
+* Stock Movement।
+* Stock Reservation।
+* Stock Release।
+* Warehouse Management।
+* Batch Management।
+* Serial Management।
+মূল দুটি Table:
+1. inventory_balances
+2. stock_movements
+inventory_balances বর্তমান Stock দেখাবে।
+stock_movements প্রতিটি Stock পরিবর্তনের ইতিহাস সংরক্ষণ করবে।
+৪.৬ Cart Module
+দায়িত্ব:
+* Customer Cart।
+* Cart Items।
+* Quantity Update।
+* Product Validation।
+* Multi-Store Cart।
+একটি Cart-এ একাধিক Store-এর পণ্য থাকতে পারবে।
+৪.৭ Order Module
+দায়িত্ব:
+* Parent Order।
+* Store Order।
+* Order Items।
+* Order Status।
+* Order History।
+* Cancellation।
+Order Structure:
+PARENT ORDER
+     |
+     +------ STORE ORDER 1
+     |          |
+     |          +--- Product A
+     |          +--- Product B
+     |
+     +------ STORE ORDER 2
+                |
+                +--- Product C
+                +--- Product D
+
+
+একটি Parent Order-এর অধীনে একাধিক Store Order থাকতে পারবে।
+৪.৮ Payment Module
+দায়িত্ব:
+* Payment Creation।
+* Payment Status।
+* Payment Transactions।
+* Webhook Validation।
+* Refund।
+* Reconciliation।
+প্রতিটি Payment Provider-এর জন্য Adapter ব্যবহার করা হবে।
+এতে ভবিষ্যতে Payment Gateway পরিবর্তন করা সহজ হবে।
+৪.৯ Fulfillment Module
+দায়িত্ব:
+* Courier Selection।
+* Shipment Creation।
+* Tracking Number।
+* Shipment Status।
+* Delivery Events।
+প্রথম সংস্করণে Manual Courier Booking ব্যবহার করা যাবে।
+৪.১০ Return & Support Module
+দায়িত্ব:
+* Return Request।
+* Return Approval।
+* Return Items।
+* Refund Workflow।
+* Customer Support Ticket।
+* Support Messages।
+৪.১১ Reporting Module
+দায়িত্ব:
+* Daily Sales।
+* Monthly Sales।
+* Store-wise Sales।
+* Inventory Report।
+* Stock Movement Report।
+* Delivery Report।
+* Payment Reconciliation।
+* Gross Margin ও Profit Analysis।
+৫. API Architecture
+সব API Versioned হবে।
+Base Path:
+/api/v1
+
+
+৫.১ Authentication API
+GET    /api/v1/me
+GET    /api/v1/me/profile
+PATCH  /api/v1/me/profile
+GET    /api/v1/me/addresses
+POST   /api/v1/me/addresses
+PATCH  /api/v1/me/addresses/{id}
+DELETE /api/v1/me/addresses/{id}
+
+
+Authentication-এর জন্য Supabase Auth ব্যবহার করা হবে।
+৫.২ Store API
+GET    /api/v1/stores
+GET    /api/v1/stores/{slug}
+GET    /api/v1/stores/{slug}/categories
+
+
+৫.৩ Product API
+GET    /api/v1/products
+GET    /api/v1/products/{id}
+GET    /api/v1/categories
+GET    /api/v1/categories/{id}/products
+
+
+৫.৪ Cart API
+GET    /api/v1/cart
+POST   /api/v1/cart/items
+PATCH  /api/v1/cart/items/{id}
+DELETE /api/v1/cart/items/{id}
+
+
+৫.৫ Checkout API
+POST   /api/v1/checkout
+
+
+Checkout Backend-এ সম্পন্ন হবে।
+৫.৬ Order API
+GET    /api/v1/orders
+GET    /api/v1/orders/{id}
+POST   /api/v1/orders/{id}/cancel
+
+
+৫.৭ Payment API
+POST   /api/v1/payments
+GET    /api/v1/payments/{id}
+POST   /api/v1/payments/{id}/refund
+
+
+৫.৮ Shipment API
+GET    /api/v1/shipments/{id}
+GET    /api/v1/orders/{id}/shipments
+
+
+৫.৯ Return API
+POST   /api/v1/returns
+GET    /api/v1/returns
+GET    /api/v1/returns/{id}
+
+
+৫.১০ Admin API
+GET    /api/v1/admin/dashboard
+GET    /api/v1/admin/reports
+GET    /api/v1/admin/orders
+GET    /api/v1/admin/inventory
+
+
+৫.১১ Webhook API
+POST   /api/v1/webhooks/payments/{provider}
+
+
+Webhook অবশ্যই Provider-এর Signature দিয়ে যাচাই করতে হবে।
+৬. Checkout Processing Architecture
+Checkout হলো Aura Bell-এর সবচেয়ে গুরুত্বপূর্ণ Business Workflow-গুলোর একটি।
+CUSTOMER CART
+     |
+     v
+BACKEND VALIDATION
+     |
+     v
+RECALCULATE PRICE
+     |
+     v
+CHECK INVENTORY
+     |
+     v
+RESERVE STOCK
+     |
+     v
+CREATE PARENT ORDER
+     |
+     v
+CREATE STORE ORDERS
+     |
+     v
+SAVE ORDER SNAPSHOTS
+     |
+     v
+DATABASE TRANSACTION COMMIT
+     |
+     v
+PAYMENT / COD WORKFLOW
+
+
+গুরুত্বপূর্ণ নিয়ম
+* Price Backend থেকে পুনরায় হিসাব করতে হবে।
+* Stock Reservation Atomic ও Concurrency-safe হতে হবে।
+* Database Transaction ব্যর্থ হলে আংশিক Order তৈরি হওয়া যাবে না।
+* একই Checkout Request পুনরায় এলে Idempotency ব্যবস্থা থাকতে হবে।
+* Payment ব্যর্থ হলে নির্ধারিত নিয়ম অনুযায়ী Order ও Stock Reservation পরিচালিত হবে।
+৭. Order, Payment ও Shipment State Management
+এই তিনটি Status আলাদাভাবে পরিচালিত হবে।
+Order Status
+PENDING
+CONFIRMED
+PROCESSING
+COMPLETED
+CANCELLED
+
+
+Payment Status
+PENDING
+AUTHORIZED
+PAID
+FAILED
+PARTIALLY_REFUNDED
+REFUNDED
+
+
+Shipment Status
+PENDING
+BOOKED
+PICKED_UP
+IN_TRANSIT
+DELIVERED
+FAILED
+RETURNED
+
+
+এগুলো প্রাথমিক State-এর উদাহরণ। বাস্তব Business Workflow অনুযায়ী Transition Rule নির্ধারণ করতে হবে।
+৮. Payment Architecture
+Payment Integration Adapter Pattern ব্যবহার করবে।
+FASTAPI PAYMENT MODULE
+          |
+          v
+   PAYMENT ADAPTER
+          |
+     +----+----+
+     |         |
+     v         v
+ Provider A  Provider B
+
+
+প্রাথমিক পর্যায়ে একটি Gateway যথেষ্ট।
+Webhook Processing
+1. Provider থেকে Webhook আসবে।
+2. Signature যাচাই হবে।
+3. Provider Event ID পরীক্ষা হবে।
+4. Duplicate Event হলে পুনরায় Business Action হবে না।
+5. Payment Transaction সংরক্ষণ হবে।
+6. সংশ্লিষ্ট Payment Status Update হবে।
+7. প্রয়োজন হলে Order Workflow Update হবে।
+Webhook Event ID-তে Unique Constraint থাকতে হবে।
+৯. Background Worker Architecture
+প্রথমে PostgreSQL-backed Outbox Pattern ব্যবহার করা হবে।
+BUSINESS TRANSACTION
+        |
+        v
+   OUTBOX EVENT
+        |
+        v
+ BACKGROUND WORKER
+        |
+   +----+------+---------+
+   |           |         |
+   v           v         v
+ Email       SMS     Notifications
+
+
+Worker-এর কাজ:
+* Notification।
+* Email।
+* SMS।
+* Retry Failed Jobs।
+* Order Event Processing।
+* Scheduled Stock Reservation Release।
+শুরুতে Kafka বা RabbitMQ প্রয়োজন নেই।
+১০. Authentication ও Authorization
+Supabase Auth User Authentication পরিচালনা করবে।
+FastAPI প্রতিটি Protected Request-এর JWT যাচাই করবে।
+যাচাইয়ের বিষয়:
+* Token Signature।
+* Issuer।
+* Audience।
+* Expiry।
+Authorization-এর জন্য Role-Based Access Control (RBAC) ব্যবহার করা হবে।
+প্রাথমিক Role:
+* Owner।
+* Admin।
+* Store Manager।
+* Inventory Manager।
+* Order Manager।
+* Support Agent।
+* Customer।
+Store-level Permission থাকতে হবে।
+Database Row Level Security (RLS) অতিরিক্ত সুরক্ষা হিসেবে থাকবে।
+Supabase Service Role Key কখনো Frontend-এ প্রকাশ করা যাবে না।
+১১. Frontend Architecture
+প্রস্তাবিত Folder Structure:
+apps/
+  web/
+    src/
+      app/
+      components/
+      features/
+        auth/
+        stores/
+        products/
+        cart/
+        checkout/
+        orders/
+        account/
+        admin/
+      hooks/
+      services/
+      types/
+      lib/
+      styles/
+
+
+Frontend-এর গুরুত্বপূর্ণ নিয়ম:
+* Reusable Components ব্যবহার করতে হবে।
+* API Calls আলাদা Service Layer-এ রাখতে হবে।
+* TypeScript Interface ব্যবহার করতে হবে।
+* Form Validation করতে হবে।
+* Loading, Empty ও Error State রাখতে হবে।
+* Mobile-first Responsive Design করতে হবে।
+* Customer ও Admin Interface-এর Permission আলাদা রাখতে হবে।
+১২. Backend Folder Architecture
+apps/
+  api/
+    app/
+      main.py
+      core/
+        config.py
+        security.py
+        database.py
+      modules/
+        identity/
+        stores/
+        catalog/
+        pricing/
+        inventory/
+        cart/
+        orders/
+        payments/
+        fulfillment/
+        returns/
+        support/
+        reporting/
+      integrations/
+        payments/
+        couriers/
+        notifications/
+      workers/
+      tests/
+
+
+প্রতিটি Module-এর মধ্যে প্রয়োজন অনুযায়ী:
+* models
+* schemas
+* routes
+* service
+* repository
+* tests
+রাখা যাবে।
+প্রথম থেকেই অপ্রয়োজনীয় Layer তৈরি করা যাবে না।
+১৩. Deployment Architecture
+প্রাথমিক Hosting পরিকল্পনা:
+অংশ
+	প্রস্তাবিত সেবা
+	Frontend
+	Vercel
+	Backend
+	Render
+	Database
+	Supabase
+	Authentication
+	Supabase Auth
+	Storage
+	Supabase Storage
+	DNS/CDN
+	Cloudflare
+	Source Control
+	GitHub
+	এগুলো প্রাথমিক প্রস্তাব। Production-এর আগে খরচ, সীমাবদ্ধতা, Region, Backup এবং SLA যাচাই করতে হবে।
+Environment
+কমপক্ষে তিনটি Environment আলাদা রাখতে হবে:
+1. Development।
+2. Staging।
+3. Production।
+Production Secret Development বা Frontend-এ রাখা যাবে না।
+১৪. Monitoring ও Reliability
+* API Health Check।
+* Application Error Logging।
+* Database Backup।
+* Restore Testing।
+* Payment Reconciliation।
+* Inventory Reconciliation।
+* Failed Worker Job Monitoring।
+* Audit Logging।
+* Deployment Rollback Plan।
+Log-এ Password, Access Token, Payment Secret বা সংবেদনশীল ব্যক্তিগত তথ্য রাখা যাবে না।
+১৫. Testing Strategy
+Unit Testing
+* Price Calculation।
+* Inventory Calculation।
+* Permission Rules।
+* Order State Transition।
+Integration Testing
+* Authentication।
+* Checkout।
+* Stock Reservation।
+* Payment Webhook।
+* Refund।
+* Shipment Creation।
+End-to-End Testing
+* Customer Registration।
+* Multi-Store Cart।
+* COD Checkout।
+* Online Payment।
+* Order Tracking।
+* Return Request।
+* Admin Operations।
+বিশেষ পরীক্ষার বিষয়
+* একই সময়ে একাধিক Checkout।
+* Duplicate Webhook।
+* Payment Success কিন্তু API Timeout।
+* Refund Failure।
+* Worker Retry।
+* Database Transaction Rollback।
+১৬. ভবিষ্যৎ সম্প্রসারণের নীতি
+সিস্টেমের প্রয়োজন ও বাস্তব চাপ বাড়লে ধাপে ধাপে উন্নয়ন করা হবে।
+সম্ভাব্য উন্নয়ন:
+* Dedicated Search Service।
+* Redis Caching।
+* Dedicated Queue।
+* Advanced Analytics।
+* AI Recommendation।
+* Microservices।
+কিন্তু এগুলো কেবল বাস্তব প্রয়োজন ও পরিমাপযোগ্য সমস্যা দেখা দিলে যুক্ত হবে।
+১৭. চূড়ান্ত Architecture Decision
+বিষয়
+	সিদ্ধান্ত
+	Architecture
+	Modular Monolith
+	Frontend
+	Next.js + TypeScript
+	Backend
+	FastAPI
+	Database
+	Supabase PostgreSQL
+	Authentication
+	Supabase Auth
+	API
+	REST API v1
+	Worker
+	PostgreSQL Outbox
+	Hosting
+	Managed Hosting
+	Deployment
+	Separate Environments
+	Scaling
+	Need-based
+	________________
+
+
+১৮. সমাপ্তি
+Aura Bell-এর Architecture এমনভাবে তৈরি করা হবে যাতে একজন Developer প্রাথমিকভাবে পুরো সিস্টেম পরিচালনা করতে পারেন এবং ভবিষ্যতে নতুন Store, Payment Provider, Courier ও Business Module যুক্ত করতে পারেন।
+মূল Architecture লক্ষ্য:
+* Simplicity
+* Security
+* Modularity
+* Reliability
+* Scalability
+* Maintainability
+Document Status: Version 1.0 — Architecture Reference
+Document Code: AB-SA-001
+Project: Aura Bell
+AURA BELL — SYSTEM ARCHITECTURE
+প্রকল্প: Aura Bell
+ডকুমেন্ট কোড: AB-SA-001
+সংস্করণ: 1.0
+তারিখ: ০৪ নভেম্বর ২০২৬
+ডকুমেন্টের ভাষা: বাংলা
+Architecture Type: Modular Monolith
+প্রধান বাজার: বাংলাদেশ
+________________
+
+
+১. সিস্টেম আর্কিটেকচার পরিচিতি
+Aura Bell একটি Multi-Store E-commerce Platform। এর জন্য এমন একটি প্রযুক্তিগত কাঠামো তৈরি করা হবে, যেখানে একাধিক স্টোর, গ্রাহক, পণ্য, ইনভেন্টরি, অর্ডার, পেমেন্ট ও ডেলিভারি একটি কেন্দ্রীয় সিস্টেমের অধীনে কাজ করবে।
+প্রাথমিক Architecture হবে Modular Monolith।
+এর অর্থ:
+* একটি কেন্দ্রীয় Backend Application থাকবে।
+* একটি কেন্দ্রীয় PostgreSQL Database থাকবে।
+* প্রতিটি Business Module-এর নিজস্ব দায়িত্ব থাকবে।
+* Module-গুলোর মধ্যে নির্ধারিত নিয়মে যোগাযোগ হবে।
+* ভবিষ্যতে প্রয়োজন হলে নির্দিষ্ট Module আলাদা Service করা যাবে।
+প্রথম থেকেই Microservices তৈরি করা হবে না।
+২. নির্বাচিত প্রযুক্তি (Technology Stack)
+স্তর
+	প্রযুক্তি
+	দায়িত্ব
+	Frontend
+	Next.js
+	ওয়েবসাইট ও Admin Panel
+	UI
+	React
+	User Interface
+	Language
+	TypeScript
+	Frontend Development
+	Styling
+	Tailwind CSS
+	Design System
+	Backend
+	FastAPI
+	Business Logic ও API
+	Database
+	PostgreSQL
+	মূল ডেটা সংরক্ষণ
+	Authentication
+	Supabase Auth
+	User Authentication
+	Storage
+	Supabase Storage
+	ছবি ও ফাইল
+	API Documentation
+	OpenAPI
+	API Documentation
+	Version Control
+	GitHub
+	Source Code
+	Web Hosting
+	Vercel বা সমমানের সেবা
+	Frontend Hosting
+	API Hosting
+	Render বা সমমানের সেবা
+	Backend Hosting
+	৩. High-Level Architecture
+                CUSTOMERS / ADMIN
+                         |
+                         v
+                  NEXT.JS FRONTEND
+                         |
+                         v
+                   FASTAPI BACKEND
+                         |
+          +--------------+--------------+
+          |              |              |
+          v              v              v
+      PostgreSQL    Supabase Auth   Supabase Storage
+          |
+          |
+    +-----+----------------------------------+
+    |             |             |            |
+    v             v             v            v
+  Payment       Courier     Notification   Worker
+  Provider      Provider      Provider
+
+
+৩.১ Frontend
+Next.js দিয়ে তৈরি হবে:
+* Best Gadget Storefront।
+* Aura Skin Care Storefront।
+* Shared Customer Account।
+* Shared Shopping Cart।
+* Checkout Interface।
+* Customer Dashboard।
+* Admin Dashboard।
+একই Frontend Application-এর মধ্যে Store অনুযায়ী আলাদা Design, Branding ও Configuration ব্যবহার করা যাবে।
+৩.২ Backend
+FastAPI হবে কেন্দ্রীয় Business Logic Layer।
+Frontend সরাসরি গুরুত্বপূর্ণ Database Operation করবে না।
+নিচের কাজগুলো Backend-এর মাধ্যমে সম্পন্ন হবে:
+* Price Calculation।
+* Stock Validation।
+* Stock Reservation।
+* Order Creation।
+* Payment Processing।
+* Refund Processing।
+* Role Permission Validation।
+* Reporting।
+৩.৩ Database
+Supabase PostgreSQL হবে মূল Database।
+সব Business Module একই Database ব্যবহার করবে, তবে প্রতিটি Module-এর Table ও Business Logic নির্দিষ্টভাবে সংগঠিত থাকবে।
+৪. Backend Module Architecture
+Backend-এর মধ্যে নিচের Module থাকবে।
+৪.১ Identity Module
+দায়িত্ব:
+* User Profile।
+* Authentication।
+* Role Management।
+* Permission Management।
+* Store-level Access।
+* Customer Address।
+৪.২ Store Module
+দায়িত্ব:
+* Store Creation।
+* Store Configuration।
+* Store Status।
+* Store Branding।
+* Store Policies।
+* Store-specific Settings।
+প্রাথমিক Store:
+* Best Gadget।
+* Aura Skin Care।
+৪.৩ Catalog Module
+দায়িত্ব:
+* Product Management।
+* Category Management।
+* Product Variants।
+* SKU Management।
+* Product Images।
+* Product Attributes।
+বিশেষ নিয়ম:
+Skincare-এর জন্য Batch ও Expiry Information প্রয়োজন হতে পারে।
+Gadget-এর জন্য Warranty ও প্রয়োজন অনুযায়ী Serial/IMEI Information থাকতে পারে।
+৪.৪ Pricing Module
+দায়িত্ব:
+* Product Price।
+* Discount।
+* Promotion।
+* Price Validation।
+* Checkout Calculation।
+গুরুত্বপূর্ণ নিয়ম:
+Frontend থেকে পাঠানো Price কখনো চূড়ান্ত Price হিসেবে বিশ্বাস করা যাবে না।
+Backend Database থেকে বর্তমান Price যাচাই করবে।
+৪.৫ Inventory Module
+দায়িত্ব:
+* Stock Balance।
+* Stock Movement।
+* Stock Reservation।
+* Stock Release।
+* Warehouse Management।
+* Batch Management।
+* Serial Management।
+মূল দুটি Table:
+1. inventory_balances
+2. stock_movements
+inventory_balances বর্তমান Stock দেখাবে।
+stock_movements প্রতিটি Stock পরিবর্তনের ইতিহাস সংরক্ষণ করবে।
+৪.৬ Cart Module
+দায়িত্ব:
+* Customer Cart।
+* Cart Items।
+* Quantity Update।
+* Product Validation।
+* Multi-Store Cart।
+একটি Cart-এ একাধিক Store-এর পণ্য থাকতে পারবে।
+৪.৭ Order Module
+দায়িত্ব:
+* Parent Order।
+* Store Order।
+* Order Items।
+* Order Status।
+* Order History।
+* Cancellation।
+Order Structure:
+PARENT ORDER
+     |
+     +------ STORE ORDER 1
+     |          |
+     |          +--- Product A
+     |          +--- Product B
+     |
+     +------ STORE ORDER 2
+                |
+                +--- Product C
+                +--- Product D
+
+
+একটি Parent Order-এর অধীনে একাধিক Store Order থাকতে পারবে।
+৪.৮ Payment Module
+দায়িত্ব:
+* Payment Creation।
+* Payment Status।
+* Payment Transactions।
+* Webhook Validation।
+* Refund।
+* Reconciliation।
+প্রতিটি Payment Provider-এর জন্য Adapter ব্যবহার করা হবে।
+এতে ভবিষ্যতে Payment Gateway পরিবর্তন করা সহজ হবে।
+৪.৯ Fulfillment Module
+দায়িত্ব:
+* Courier Selection।
+* Shipment Creation।
+* Tracking Number।
+* Shipment Status।
+* Delivery Events।
+প্রথম সংস্করণে Manual Courier Booking ব্যবহার করা যাবে।
+৪.১০ Return & Support Module
+দায়িত্ব:
+* Return Request।
+* Return Approval।
+* Return Items।
+* Refund Workflow।
+* Customer Support Ticket।
+* Support Messages।
+৪.১১ Reporting Module
+দায়িত্ব:
+* Daily Sales।
+* Monthly Sales।
+* Store-wise Sales।
+* Inventory Report।
+* Stock Movement Report।
+* Delivery Report।
+* Payment Reconciliation।
+* Gross Margin ও Profit Analysis।
+৫. API Architecture
+সব API Versioned হবে।
+Base Path:
+/api/v1
+
+
+৫.১ Authentication API
+GET    /api/v1/me
+GET    /api/v1/me/profile
+PATCH  /api/v1/me/profile
+GET    /api/v1/me/addresses
+POST   /api/v1/me/addresses
+PATCH  /api/v1/me/addresses/{id}
+DELETE /api/v1/me/addresses/{id}
+
+
+Authentication-এর জন্য Supabase Auth ব্যবহার করা হবে।
+৫.২ Store API
+GET    /api/v1/stores
+GET    /api/v1/stores/{slug}
+GET    /api/v1/stores/{slug}/categories
+
+
+৫.৩ Product API
+GET    /api/v1/products
+GET    /api/v1/products/{id}
+GET    /api/v1/categories
+GET    /api/v1/categories/{id}/products
+
+
+৫.৪ Cart API
+GET    /api/v1/cart
+POST   /api/v1/cart/items
+PATCH  /api/v1/cart/items/{id}
+DELETE /api/v1/cart/items/{id}
+
+
+৫.৫ Checkout API
+POST   /api/v1/checkout
+
+
+Checkout Backend-এ সম্পন্ন হবে।
+৫.৬ Order API
+GET    /api/v1/orders
+GET    /api/v1/orders/{id}
+POST   /api/v1/orders/{id}/cancel
+
+
+৫.৭ Payment API
+POST   /api/v1/payments
+GET    /api/v1/payments/{id}
+POST   /api/v1/payments/{id}/refund
+
+
+৫.৮ Shipment API
+GET    /api/v1/shipments/{id}
+GET    /api/v1/orders/{id}/shipments
+
+
+৫.৯ Return API
+POST   /api/v1/returns
+GET    /api/v1/returns
+GET    /api/v1/returns/{id}
+
+
+৫.১০ Admin API
+GET    /api/v1/admin/dashboard
+GET    /api/v1/admin/reports
+GET    /api/v1/admin/orders
+GET    /api/v1/admin/inventory
+
+
+৫.১১ Webhook API
+POST   /api/v1/webhooks/payments/{provider}
+
+
+Webhook অবশ্যই Provider-এর Signature দিয়ে যাচাই করতে হবে।
+৬. Checkout Processing Architecture
+Checkout হলো Aura Bell-এর সবচেয়ে গুরুত্বপূর্ণ Business Workflow-গুলোর একটি।
+CUSTOMER CART
+     |
+     v
+BACKEND VALIDATION
+     |
+     v
+RECALCULATE PRICE
+     |
+     v
+CHECK INVENTORY
+     |
+     v
+RESERVE STOCK
+     |
+     v
+CREATE PARENT ORDER
+     |
+     v
+CREATE STORE ORDERS
+     |
+     v
+SAVE ORDER SNAPSHOTS
+     |
+     v
+DATABASE TRANSACTION COMMIT
+     |
+     v
+PAYMENT / COD WORKFLOW
+
+
+গুরুত্বপূর্ণ নিয়ম
+* Price Backend থেকে পুনরায় হিসাব করতে হবে।
+* Stock Reservation Atomic ও Concurrency-safe হতে হবে।
+* Database Transaction ব্যর্থ হলে আংশিক Order তৈরি হওয়া যাবে না।
+* একই Checkout Request পুনরায় এলে Idempotency ব্যবস্থা থাকতে হবে।
+* Payment ব্যর্থ হলে নির্ধারিত নিয়ম অনুযায়ী Order ও Stock Reservation পরিচালিত হবে।
+৭. Order, Payment ও Shipment State Management
+এই তিনটি Status আলাদাভাবে পরিচালিত হবে।
+Order Status
+PENDING
+CONFIRMED
+PROCESSING
+COMPLETED
+CANCELLED
+
+
+Payment Status
+PENDING
+AUTHORIZED
+PAID
+FAILED
+PARTIALLY_REFUNDED
+REFUNDED
+
+
+Shipment Status
+PENDING
+BOOKED
+PICKED_UP
+IN_TRANSIT
+DELIVERED
+FAILED
+RETURNED
+
+
+এগুলো প্রাথমিক State-এর উদাহরণ। বাস্তব Business Workflow অনুযায়ী Transition Rule নির্ধারণ করতে হবে।
+৮. Payment Architecture
+Payment Integration Adapter Pattern ব্যবহার করবে।
+FASTAPI PAYMENT MODULE
+          |
+          v
+   PAYMENT ADAPTER
+          |
+     +----+----+
+     |         |
+     v         v
+ Provider A  Provider B
+
+
+প্রাথমিক পর্যায়ে একটি Gateway যথেষ্ট।
+Webhook Processing
+1. Provider থেকে Webhook আসবে।
+2. Signature যাচাই হবে।
+3. Provider Event ID পরীক্ষা হবে।
+4. Duplicate Event হলে পুনরায় Business Action হবে না।
+5. Payment Transaction সংরক্ষণ হবে।
+6. সংশ্লিষ্ট Payment Status Update হবে।
+7. প্রয়োজন হলে Order Workflow Update হবে।
+Webhook Event ID-তে Unique Constraint থাকতে হবে।
+৯. Background Worker Architecture
+প্রথমে PostgreSQL-backed Outbox Pattern ব্যবহার করা হবে।
+BUSINESS TRANSACTION
+        |
+        v
+   OUTBOX EVENT
+        |
+        v
+ BACKGROUND WORKER
+        |
+   +----+------+---------+
+   |           |         |
+   v           v         v
+ Email       SMS     Notifications
+
+
+Worker-এর কাজ:
+* Notification।
+* Email।
+* SMS।
+* Retry Failed Jobs।
+* Order Event Processing।
+* Scheduled Stock Reservation Release।
+শুরুতে Kafka বা RabbitMQ প্রয়োজন নেই।
+১০. Authentication ও Authorization
+Supabase Auth User Authentication পরিচালনা করবে।
+FastAPI প্রতিটি Protected Request-এর JWT যাচাই করবে।
+যাচাইয়ের বিষয়:
+* Token Signature।
+* Issuer।
+* Audience।
+* Expiry।
+Authorization-এর জন্য Role-Based Access Control (RBAC) ব্যবহার করা হবে।
+প্রাথমিক Role:
+* Owner।
+* Admin।
+* Store Manager।
+* Inventory Manager।
+* Order Manager।
+* Support Agent।
+* Customer।
+Store-level Permission থাকতে হবে।
+Database Row Level Security (RLS) অতিরিক্ত সুরক্ষা হিসেবে থাকবে।
+Supabase Service Role Key কখনো Frontend-এ প্রকাশ করা যাবে না।
+১১. Frontend Architecture
+প্রস্তাবিত Folder Structure:
+apps/
+  web/
+    src/
+      app/
+      components/
+      features/
+        auth/
+        stores/
+        products/
+        cart/
+        checkout/
+        orders/
+        account/
+        admin/
+      hooks/
+      services/
+      types/
+      lib/
+      styles/
+
+
+Frontend-এর গুরুত্বপূর্ণ নিয়ম:
+* Reusable Components ব্যবহার করতে হবে।
+* API Calls আলাদা Service Layer-এ রাখতে হবে।
+* TypeScript Interface ব্যবহার করতে হবে।
+* Form Validation করতে হবে।
+* Loading, Empty ও Error State রাখতে হবে।
+* Mobile-first Responsive Design করতে হবে।
+* Customer ও Admin Interface-এর Permission আলাদা রাখতে হবে।
+১২. Backend Folder Architecture
+apps/
+  api/
+    app/
+      main.py
+      core/
+        config.py
+        security.py
+        database.py
+      modules/
+        identity/
+        stores/
+        catalog/
+        pricing/
+        inventory/
+        cart/
+        orders/
+        payments/
+        fulfillment/
+        returns/
+        support/
+        reporting/
+      integrations/
+        payments/
+        couriers/
+        notifications/
+      workers/
+      tests/
+
+
+প্রতিটি Module-এর মধ্যে প্রয়োজন অনুযায়ী:
+* models
+* schemas
+* routes
+* service
+* repository
+* tests
+রাখা যাবে।
+প্রথম থেকেই অপ্রয়োজনীয় Layer তৈরি করা যাবে না।
+১৩. Deployment Architecture
+প্রাথমিক Hosting পরিকল্পনা:
+অংশ
+	প্রস্তাবিত সেবা
+	Frontend
+	Vercel
+	Backend
+	Render
+	Database
+	Supabase
+	Authentication
+	Supabase Auth
+	Storage
+	Supabase Storage
+	DNS/CDN
+	Cloudflare
+	Source Control
+	GitHub
+	এগুলো প্রাথমিক প্রস্তাব। Production-এর আগে খরচ, সীমাবদ্ধতা, Region, Backup এবং SLA যাচাই করতে হবে।
+Environment
+কমপক্ষে তিনটি Environment আলাদা রাখতে হবে:
+1. Development।
+2. Staging।
+3. Production।
+Production Secret Development বা Frontend-এ রাখা যাবে না।
+১৪. Monitoring ও Reliability
+* API Health Check।
+* Application Error Logging।
+* Database Backup।
+* Restore Testing।
+* Payment Reconciliation।
+* Inventory Reconciliation।
+* Failed Worker Job Monitoring।
+* Audit Logging।
+* Deployment Rollback Plan।
+Log-এ Password, Access Token, Payment Secret বা সংবেদনশীল ব্যক্তিগত তথ্য রাখা যাবে না।
+১৫. Testing Strategy
+Unit Testing
+* Price Calculation।
+* Inventory Calculation।
+* Permission Rules।
+* Order State Transition।
+Integration Testing
+* Authentication।
+* Checkout।
+* Stock Reservation।
+* Payment Webhook।
+* Refund।
+* Shipment Creation।
+End-to-End Testing
+* Customer Registration।
+* Multi-Store Cart।
+* COD Checkout।
+* Online Payment।
+* Order Tracking।
+* Return Request।
+* Admin Operations।
+বিশেষ পরীক্ষার বিষয়
+* একই সময়ে একাধিক Checkout।
+* Duplicate Webhook।
+* Payment Success কিন্তু API Timeout।
+* Refund Failure।
+* Worker Retry।
+* Database Transaction Rollback।
+১৬. ভবিষ্যৎ সম্প্রসারণের নীতি
+সিস্টেমের প্রয়োজন ও বাস্তব চাপ বাড়লে ধাপে ধাপে উন্নয়ন করা হবে।
+সম্ভাব্য উন্নয়ন:
+* Dedicated Search Service।
+* Redis Caching।
+* Dedicated Queue।
+* Advanced Analytics।
+* AI Recommendation।
+* Microservices।
+কিন্তু এগুলো কেবল বাস্তব প্রয়োজন ও পরিমাপযোগ্য সমস্যা দেখা দিলে যুক্ত হবে।
+১৭. চূড়ান্ত Architecture Decision
+বিষয়
+	সিদ্ধান্ত
+	Architecture
+	Modular Monolith
+	Frontend
+	Next.js + TypeScript
+	Backend
+	FastAPI
+	Database
+	Supabase PostgreSQL
+	Authentication
+	Supabase Auth
+	API
+	REST API v1
+	Worker
+	PostgreSQL Outbox
+	Hosting
+	Managed Hosting
+	Deployment
+	Separate Environments
+	Scaling
+	Need-based
+	________________
+
+
+১৮. সমাপ্তি
+Aura Bell-এর Architecture এমনভাবে তৈরি করা হবে যাতে একজন Developer প্রাথমিকভাবে পুরো সিস্টেম পরিচালনা করতে পারেন এবং ভবিষ্যতে নতুন Store, Payment Provider, Courier ও Business Module যুক্ত করতে পারেন।
+মূল Architecture লক্ষ্য:
+* Simplicity
+* Security
+* Modularity
+* Reliability
+* Scalability
+* Maintainability
+Document Status: Version 1.0 — Architecture Reference
+Document Code: AB-SA-001
+Project: Aura Bell

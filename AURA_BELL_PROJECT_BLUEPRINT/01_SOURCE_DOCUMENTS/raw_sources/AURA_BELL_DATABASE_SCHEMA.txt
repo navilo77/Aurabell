@@ -1,0 +1,2756 @@
+﻿AURA BELL — DATABASE SCHEMA
+প্রকল্প: Aura Bell
+ডকুমেন্ট কোড: AB-DB-001
+সংস্করণ: 1.0
+তারিখ: ০৪ নভেম্বর ২০২৬
+Database Engine: PostgreSQL
+Database Platform: Supabase
+Architecture: Modular Monolith
+প্রধান বাজার: বাংলাদেশ
+________________
+
+
+১. Database-এর উদ্দেশ্য
+Aura Bell-এর Database এমনভাবে ডিজাইন করা হবে, যাতে একাধিক স্টোর, গ্রাহক, পণ্য, ইনভেন্টরি, অর্ডার, পেমেন্ট, ডেলিভারি ও ব্যবসায়িক হিসাব একটি কেন্দ্রীয় Database থেকে পরিচালনা করা যায়।
+প্রাথমিক স্টোর:
+1. Best Gadget।
+2. Aura Skin Care।
+প্রতিটি স্টোরের নিজস্ব পণ্য ও ব্যবসায়িক তথ্য থাকবে। তবে Customer, Cart, Checkout এবং Order Management কেন্দ্রীয়ভাবে পরিচালিত হবে।
+১.১ মূল Database নীতিমালা
+* PostgreSQL হবে মূল Database।
+* প্রতিটি প্রধান Table-এ UUID Primary Key থাকবে।
+* Date ও Time সংরক্ষণে TIMESTAMPTZ ব্যবহার হবে।
+* অর্থের পরিমাণে NUMERIC ব্যবহার হবে, FLOAT নয়।
+* সব গুরুত্বপূর্ণ Relationship-এ Foreign Key থাকবে।
+* প্রয়োজনীয় Unique ও Check Constraint থাকবে।
+* Stock Movement ও Financial Transaction-এর ইতিহাস সংরক্ষণ করা হবে।
+* Database পরিবর্তন Migration-এর মাধ্যমে হবে।
+* Production Database-এ সরাসরি অনিয়ন্ত্রিত পরিবর্তন করা যাবে না।
+২. Database Architecture
+                 AURA BELL DATABASE
+                          |
+        +-----------------+-----------------+
+        |                 |                 |
+        v                 v                 v
+    IDENTITY            STORES             CATALOG
+        |                 |                 |
+        v                 v                 v
+    PROFILES          STORE POLICIES      PRODUCTS
+    ADDRESSES                             CATEGORIES
+    ROLES                                 VARIANTS
+                                              |
+                                              v
+                                          INVENTORY
+                                              |
+                                              v
+                                           CART
+                                              |
+                                              v
+                                            ORDERS
+                                              |
+                                  +-----------+-----------+
+                                  |                       |
+                                  v                       v
+                               PAYMENTS                SHIPMENTS
+                                  |
+                                  v
+                                REFUNDS
+
+
+৩. Database Naming Convention
+বিষয়
+	নিয়ম
+	Table Name
+	snake_case, plural
+	Column Name
+	snake_case
+	Primary Key
+	id
+	Foreign Key
+	সংশ্লিষ্ট Table-এর নাম + _id
+	Primary Key Type
+	UUID
+	Timestamp
+	TIMESTAMPTZ
+	Money
+	NUMERIC(12,2)
+	Quantity
+	প্রয়োজন অনুযায়ী INTEGER বা NUMERIC
+	Boolean
+	BOOLEAN
+	JSON Data
+	JSONB
+	প্রতিটি Table-এ প্রয়োজন অনুযায়ী:
+* id
+* created_at
+* updated_at
+থাকবে।
+সব Table-এ অপ্রয়োজনীয় Column যোগ করা হবে না।
+৪. Identity & User Management
+এই Module-এ গ্রাহক, Admin এবং Staff-এর পরিচয় ও Permission পরিচালিত হবে।
+৪.১ profiles
+গ্রাহকের মূল Profile।
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Supabase Auth User ID
+	full_name
+	VARCHAR(150)
+	নাম
+	phone
+	VARCHAR(20)
+	ফোন নম্বর
+	email
+	VARCHAR(255)
+	ইমেইল
+	avatar_url
+	TEXT
+	Profile Image
+	status
+	VARCHAR(20)
+	Account Status
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	updated_at
+	TIMESTAMPTZ
+	পরিবর্তনের সময়
+	id Supabase Auth-এর User ID-এর সঙ্গে যুক্ত থাকবে।
+৪.২ addresses
+গ্রাহকের Delivery Address।
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Address ID
+	user_id
+	UUID FK
+	Customer
+	recipient_name
+	VARCHAR(150)
+	গ্রহণকারীর নাম
+	phone
+	VARCHAR(20)
+	ফোন
+	division
+	VARCHAR(100)
+	বিভাগ
+	district
+	VARCHAR(100)
+	জেলা
+	upazila
+	VARCHAR(100)
+	উপজেলা
+	area
+	VARCHAR(150)
+	এলাকা
+	address_line
+	TEXT
+	বিস্তারিত ঠিকানা
+	postal_code
+	VARCHAR(20)
+	পোস্ট কোড
+	is_default
+	BOOLEAN
+	Default Address
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	একজন Customer-এর একাধিক Address থাকতে পারবে।
+৪.৩ roles
+Column
+	Type
+	id
+	UUID PK
+	name
+	VARCHAR(50)
+	description
+	TEXT
+	প্রাথমিক Role:
+* owner
+* admin
+* store_manager
+* inventory_manager
+* order_manager
+* support_agent
+* customer
+৪.৪ permissions
+Column
+	Type
+	id
+	UUID PK
+	code
+	VARCHAR(100) UNIQUE
+	description
+	TEXT
+	৪.৫ user_roles
+একজন User একাধিক Role পেতে পারবেন।
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK
+	role_id
+	UUID FK
+	store_id
+	UUID FK, nullable
+	assigned_by
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	store_id নির্দিষ্ট করলে সেই Role নির্দিষ্ট Store-এর জন্য প্রযোজ্য হবে।
+৪.৬ role_permissions
+Column
+	Type
+	role_id
+	UUID FK
+	permission_id
+	UUID FK
+	Composite Primary Key:
+(role_id, permission_id)
+৫. Store Management
+৫.১ stores
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Store ID
+	name
+	VARCHAR(150)
+	Store Name
+	slug
+	VARCHAR(150) UNIQUE
+	URL Slug
+	description
+	TEXT
+	বিবরণ
+	logo_url
+	TEXT
+	Logo
+	primary_color
+	VARCHAR(20)
+	Brand Color
+	status
+	VARCHAR(20)
+	Active/Inactive
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	updated_at
+	TIMESTAMPTZ
+	পরিবর্তনের সময়
+	প্রাথমিক Store Data:
+* Best Gadget
+* Aura Skin Care
+৫.২ store_policies
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	policy_type
+	VARCHAR(50)
+	policy_content
+	JSONB
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	এখানে Store-specific Return ও Warranty Policy রাখা যাবে।
+৬. Product Catalog
+৬.১ categories
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	parent_id
+	UUID FK, nullable
+	name
+	VARCHAR(150)
+	slug
+	VARCHAR(150)
+	description
+	TEXT
+	image_url
+	TEXT
+	sort_order
+	INTEGER
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	একটি Category-এর অধীনে Subcategory থাকতে পারবে।
+একই Store-এর মধ্যে Category Slug Unique হবে।
+৬.২ products
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Product ID
+	store_id
+	UUID FK
+	Store
+	category_id
+	UUID FK, nullable
+	Category
+	name
+	VARCHAR(255)
+	Product Name
+	slug
+	VARCHAR(255)
+	URL Slug
+	description
+	TEXT
+	Description
+	brand
+	VARCHAR(150)
+	Brand
+	product_type
+	VARCHAR(50)
+	Product Type
+	status
+	VARCHAR(30)
+	Draft/Active/Archived
+	is_featured
+	BOOLEAN
+	Featured
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	updated_at
+	TIMESTAMPTZ
+	পরিবর্তনের সময়
+	একটি Product একটি Store-এর অন্তর্ভুক্ত হবে।
+৬.৩ product_variants
+একটি Product-এর একাধিক Variant থাকতে পারবে।
+Column
+	Type
+	id
+	UUID PK
+	product_id
+	UUID FK
+	sku
+	VARCHAR(100) UNIQUE
+	variant_name
+	VARCHAR(150)
+	attributes
+	JSONB
+	barcode
+	VARCHAR(100), nullable
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	উদাহরণ:
+একটি Smartphone-এর বিভিন্ন Storage ও Color Variant থাকতে পারে।
+একটি Skincare Product-এর বিভিন্ন Size থাকতে পারে।
+৬.৪ product_images
+Column
+	Type
+	id
+	UUID PK
+	product_id
+	UUID FK
+	image_url
+	TEXT
+	alt_text
+	VARCHAR(255)
+	sort_order
+	INTEGER
+	is_primary
+	BOOLEAN
+	৬.৫ product_attributes
+Column
+	Type
+	id
+	UUID PK
+	product_id
+	UUID FK
+	attribute_name
+	VARCHAR(100)
+	attribute_value
+	TEXT
+	উদাহরণ:
+* Ingredients
+* Skin Type
+* Warranty Period
+* Material
+* Country of Origin
+এটি প্রাথমিক Flexible Attribute Model। ভবিষ্যতে প্রয়োজন হলে Category-specific structured attributes যুক্ত করা যাবে।
+৭. Pricing Management
+৭.১ product_prices
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	currency_code
+	CHAR(3)
+	selling_price
+	NUMERIC(12,2)
+	compare_at_price
+	NUMERIC(12,2), nullable
+	effective_from
+	TIMESTAMPTZ
+	effective_until
+	TIMESTAMPTZ, nullable
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	প্রাথমিক Currency:
+BDT
+একটি Variant-এর একই সময়ে একাধিক Active Price তৈরি হতে দেওয়া যাবে না।
+৭.২ promotions (ঐচ্ছিক)
+Column
+	Type
+	id
+	UUID PK
+	name
+	VARCHAR(150)
+	discount_type
+	VARCHAR(30)
+	discount_value
+	NUMERIC(12,2)
+	start_at
+	TIMESTAMPTZ
+	end_at
+	TIMESTAMPTZ
+	is_active
+	BOOLEAN
+	প্রাথমিক Launch-এ সাধারণ Discount যথেষ্ট। জটিল Promotion Engine পরে তৈরি করা যাবে।
+৮. Inventory Management
+Inventory Aura Bell-এর অত্যন্ত গুরুত্বপূর্ণ Module।
+৮.১ warehouses
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	name
+	VARCHAR(150)
+	location
+	TEXT
+	is_active
+	BOOLEAN
+	৮.২ inventory_balances
+বর্তমান Stock সংরক্ষণ করবে।
+Column
+	Type
+	id
+	UUID PK
+	warehouse_id
+	UUID FK
+	variant_id
+	UUID FK
+	quantity_on_hand
+	INTEGER
+	quantity_reserved
+	INTEGER
+	updated_at
+	TIMESTAMPTZ
+	Available Stock:
+quantity_on_hand - quantity_reserved
+Constraint:
+* quantity_on_hand >= 0
+* quantity_reserved >= 0
+* quantity_reserved <= quantity_on_hand
+Unique:
+(warehouse_id, variant_id)
+৮.৩ stock_movements
+Stock পরিবর্তনের অপরিবর্তনীয় ইতিহাস।
+Column
+	Type
+	id
+	UUID PK
+	warehouse_id
+	UUID FK
+	variant_id
+	UUID FK
+	movement_type
+	VARCHAR(40)
+	quantity_delta
+	INTEGER
+	reference_type
+	VARCHAR(50)
+	reference_id
+	UUID, nullable
+	note
+	TEXT
+	created_by
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	Movement Type-এর উদাহরণ:
+* PURCHASE
+* SALE
+* RETURN
+* ADJUSTMENT
+* TRANSFER
+* DAMAGE
+Stock Movement-এর পুরোনো রেকর্ড সাধারণত Update বা Delete করা যাবে না। ভুল সংশোধন করতে বিপরীত Movement তৈরি করতে হবে।
+৮.৪ inventory_reservations
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	warehouse_id
+	UUID FK
+	order_id
+	UUID FK, nullable
+	quantity
+	INTEGER
+	status
+	VARCHAR(30)
+	expires_at
+	TIMESTAMPTZ
+	created_at
+	TIMESTAMPTZ
+	Status:
+* ACTIVE
+* CONSUMED
+* RELEASED
+* EXPIRED
+৮.৫ product_batches
+বিশেষত Aura Skin Care-এর জন্য।
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	batch_number
+	VARCHAR(100)
+	manufacture_date
+	DATE, nullable
+	expiry_date
+	DATE
+	quantity_received
+	INTEGER
+	created_at
+	TIMESTAMPTZ
+	একই Variant-এর একই Batch Number পুনরায় তৈরি করা যাবে না।
+৮.৬ product_serials
+প্রয়োজন অনুযায়ী Best Gadget-এর জন্য।
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	serial_number
+	VARCHAR(150) UNIQUE
+	status
+	VARCHAR(30)
+	order_item_id
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	IMEI বা Serial সংরক্ষণ করার আগে প্রয়োজনীয় গোপনীয়তা ও নিরাপত্তা ব্যবস্থা নিতে হবে।
+৯. Shopping Cart
+৯.১ carts
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK, nullable
+	session_id
+	VARCHAR(150), nullable
+	status
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	Guest Cart-এর জন্য Session ID ব্যবহার করা যাবে।
+৯.২ cart_items
+Column
+	Type
+	id
+	UUID PK
+	cart_id
+	UUID FK
+	variant_id
+	UUID FK
+	quantity
+	INTEGER
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	একটি Cart-এ একই Variant-এর একাধিক Duplicate Row রাখা হবে না।
+Cart-এর Price কেবল Display-এর জন্য Cache করা যেতে পারে। Checkout-এর সময় Backend বর্তমান Price পুনরায় যাচাই করবে।
+১০. Order Management
+১০.১ orders
+এটি Parent Order Table।
+Column
+	Type
+	id
+	UUID PK
+	order_number
+	VARCHAR(50) UNIQUE
+	user_id
+	UUID FK
+	subtotal
+	NUMERIC(12,2)
+	discount_total
+	NUMERIC(12,2)
+	delivery_total
+	NUMERIC(12,2)
+	grand_total
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	order_status
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	১০.২ store_orders
+একটি Parent Order-এর অধীনে একাধিক Store Order থাকবে।
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	store_id
+	UUID FK
+	store_order_number
+	VARCHAR(50) UNIQUE
+	subtotal
+	NUMERIC(12,2)
+	delivery_fee
+	NUMERIC(12,2)
+	status
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	Unique:
+(order_id, store_id)
+একই Parent Order-এর মধ্যে একটি Store-এর জন্য একটি Store Order থাকবে।
+১০.৩ order_items
+Column
+	Type
+	id
+	UUID PK
+	store_order_id
+	UUID FK
+	variant_id
+	UUID FK, nullable
+	product_name_snapshot
+	VARCHAR(255)
+	sku_snapshot
+	VARCHAR(100)
+	variant_snapshot
+	JSONB
+	unit_price
+	NUMERIC(12,2)
+	quantity
+	INTEGER
+	discount_amount
+	NUMERIC(12,2)
+	line_total
+	NUMERIC(12,2)
+	created_at
+	TIMESTAMPTZ
+	Order Item Snapshot রাখার কারণ:
+ভবিষ্যতে Product Name, SKU বা Price পরিবর্তন হলেও পুরোনো Order-এর তথ্য পরিবর্তিত হবে না।
+১০.৪ order_addresses
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	recipient_name
+	VARCHAR(150)
+	phone
+	VARCHAR(20)
+	division
+	VARCHAR(100)
+	district
+	VARCHAR(100)
+	upazila
+	VARCHAR(100)
+	area
+	VARCHAR(150)
+	address_line
+	TEXT
+	postal_code
+	VARCHAR(20), nullable
+	created_at
+	TIMESTAMPTZ
+	এটি Order তৈরির সময়ের Address Snapshot সংরক্ষণ করবে।
+১০.৫ order_status_history
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	old_status
+	VARCHAR(30)
+	new_status
+	VARCHAR(30)
+	changed_by
+	UUID FK, nullable
+	note
+	TEXT
+	created_at
+	TIMESTAMPTZ
+	১১. Payment & Financial Records
+১১.১ payments
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	provider
+	VARCHAR(50)
+	provider_reference
+	VARCHAR(150), nullable
+	payment_method
+	VARCHAR(40)
+	amount
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	status
+	VARCHAR(30)
+	paid_at
+	TIMESTAMPTZ, nullable
+	created_at
+	TIMESTAMPTZ
+	১১.২ payment_transactions
+Column
+	Type
+	id
+	UUID PK
+	payment_id
+	UUID FK
+	provider_transaction_id
+	VARCHAR(150), nullable
+	transaction_type
+	VARCHAR(30)
+	amount
+	NUMERIC(12,2)
+	status
+	VARCHAR(30)
+	response_data
+	JSONB
+	created_at
+	TIMESTAMPTZ
+	১১.৩ payment_webhook_events
+Column
+	Type
+	id
+	UUID PK
+	provider
+	VARCHAR(50)
+	provider_event_id
+	VARCHAR(200)
+	event_type
+	VARCHAR(100)
+	payload
+	JSONB
+	processing_status
+	VARCHAR(30)
+	processed_at
+	TIMESTAMPTZ, nullable
+	received_at
+	TIMESTAMPTZ
+	Unique Constraint:
+(provider, provider_event_id)
+এটি Duplicate Webhook Processing প্রতিরোধ করবে।
+Sensitive Payment Data অপ্রয়োজনে সংরক্ষণ করা যাবে না।
+১১.৪ refunds
+Column
+	Type
+	id
+	UUID PK
+	payment_id
+	UUID FK
+	amount
+	NUMERIC(12,2)
+	reason
+	TEXT
+	status
+	VARCHAR(30)
+	provider_reference
+	VARCHAR(150), nullable
+	created_at
+	TIMESTAMPTZ
+	একটি Payment-এর একাধিক Partial Refund থাকতে পারে।
+সব Refund-এর মোট পরিমাণ মূল Payment-এর পরিমাণ অতিক্রম করতে পারবে না।
+১১.৫ expenses
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK, nullable
+	category
+	VARCHAR(80)
+	amount
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	description
+	TEXT
+	expense_date
+	DATE
+	created_by
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	Expense Category-এর উদাহরণ:
+* PURCHASE
+* PACKAGING
+* COURIER
+* GATEWAY_FEE
+* MARKETING
+* FAILED_COD
+* RETURN
+* OTHER
+১১.৬ financial_entries
+প্রাথমিক পর্যায়ে Business Financial Reporting-এর জন্য ব্যবহার করা যেতে পারে।
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK, nullable
+	reference_type
+	VARCHAR(50)
+	reference_id
+	UUID, nullable
+	entry_type
+	VARCHAR(50)
+	amount
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	description
+	TEXT
+	created_at
+	TIMESTAMPTZ
+	গুরুত্বপূর্ণ: এই Table একা পূর্ণাঙ্গ Double-Entry Accounting System নয়। ভবিষ্যতে পূর্ণাঙ্গ হিসাবরক্ষণ প্রয়োজন হলে পৃথক Chart of Accounts, Journal ও Journal Lines ডিজাইন করতে হবে।
+১২. Delivery & Shipment
+১২.১ couriers
+Column
+	Type
+	id
+	UUID PK
+	name
+	VARCHAR(150)
+	code
+	VARCHAR(80) UNIQUE
+	api_enabled
+	BOOLEAN
+	is_active
+	BOOLEAN
+	১২.২ shipments
+Column
+	Type
+	id
+	UUID PK
+	store_order_id
+	UUID FK
+	courier_id
+	UUID FK, nullable
+	tracking_number
+	VARCHAR(150), nullable
+	status
+	VARCHAR(30)
+	delivery_fee
+	NUMERIC(12,2)
+	booked_at
+	TIMESTAMPTZ, nullable
+	delivered_at
+	TIMESTAMPTZ, nullable
+	created_at
+	TIMESTAMPTZ
+	একটি Store Order-এর প্রয়োজন অনুযায়ী একাধিক Shipment থাকতে পারে।
+১২.৩ shipment_events
+Column
+	Type
+	id
+	UUID PK
+	shipment_id
+	UUID FK
+	status
+	VARCHAR(30)
+	description
+	TEXT
+	event_time
+	TIMESTAMPTZ
+	raw_data
+	JSONB
+	১৩. Return & Customer Support
+১৩.১ return_requests
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	store_order_id
+	UUID FK
+	user_id
+	UUID FK
+	reason
+	TEXT
+	status
+	VARCHAR(30)
+	requested_at
+	TIMESTAMPTZ
+	resolved_at
+	TIMESTAMPTZ, nullable
+	১৩.২ return_items
+Column
+	Type
+	id
+	UUID PK
+	return_request_id
+	UUID FK
+	order_item_id
+	UUID FK
+	quantity
+	INTEGER
+	condition
+	VARCHAR(50)
+	resolution
+	VARCHAR(50)
+	১৩.৩ support_tickets
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK
+	order_id
+	UUID FK, nullable
+	subject
+	VARCHAR(255)
+	status
+	VARCHAR(30)
+	priority
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	১৩.৪ support_messages
+Column
+	Type
+	id
+	UUID PK
+	ticket_id
+	UUID FK
+	sender_id
+	UUID FK
+	message
+	TEXT
+	created_at
+	TIMESTAMPTZ
+	১৪. System Operations
+১৪.১ audit_logs
+Column
+	Type
+	id
+	UUID PK
+	actor_id
+	UUID FK, nullable
+	action
+	VARCHAR(100)
+	entity_type
+	VARCHAR(100)
+	entity_id
+	UUID, nullable
+	changes
+	JSONB
+	ip_address
+	INET, nullable
+	created_at
+	TIMESTAMPTZ
+	Audit Log-এ Password, Access Token বা সংবেদনশীল Payment Data রাখা যাবে না।
+১৪.২ outbox_events
+Column
+	Type
+	id
+	UUID PK
+	event_type
+	VARCHAR(150)
+	aggregate_type
+	VARCHAR(100)
+	aggregate_id
+	UUID
+	payload
+	JSONB
+	status
+	VARCHAR(30)
+	attempts
+	INTEGER
+	available_at
+	TIMESTAMPTZ
+	processed_at
+	TIMESTAMPTZ, nullable
+	created_at
+	TIMESTAMPTZ
+	এটি Background Worker-এর জন্য ব্যবহৃত হবে।
+১৪.৩ notifications
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK
+	notification_type
+	VARCHAR(80)
+	title
+	VARCHAR(255)
+	message
+	TEXT
+	is_read
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	১৪.৪ notification_templates
+Column
+	Type
+	id
+	UUID PK
+	template_key
+	VARCHAR(100) UNIQUE
+	channel
+	VARCHAR(30)
+	language
+	VARCHAR(10)
+	subject
+	VARCHAR(255), nullable
+	body
+	TEXT
+	is_active
+	BOOLEAN
+	১৪.৫ idempotency_keys
+Column
+	Type
+	id
+	UUID PK
+	key
+	VARCHAR(200)
+	user_id
+	UUID FK, nullable
+	endpoint
+	VARCHAR(200)
+	request_hash
+	VARCHAR(128)
+	response_data
+	JSONB, nullable
+	status
+	VARCHAR(30)
+	expires_at
+	TIMESTAMPTZ
+	created_at
+	TIMESTAMPTZ
+	Unique Constraint:
+(key, endpoint)
+একই Idempotency Key-এর সঙ্গে ভিন্ন Request পাঠালে তা গ্রহণ করা যাবে না।
+১৫. Daily Reports
+১৫.১ daily_reports
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	report_date
+	DATE
+	total_orders
+	INTEGER
+	total_sales
+	NUMERIC(12,2)
+	total_refunds
+	NUMERIC(12,2)
+	total_expenses
+	NUMERIC(12,2)
+	created_at
+	TIMESTAMPTZ
+	Unique:
+(store_id, report_date)
+এই Table হবে Reporting Cache বা Summary। মূল Order ও Transaction Records-এর বিকল্প নয়।
+১৬. Table Relationships
+প্রধান Relationship:
+AUTH USERS
+    |
+    v
+PROFILES
+    |
+    +------ ADDRESSES
+    |
+    +------ USER_ROLES
+    |
+    +------ CARTS
+    |
+    +------ ORDERS
+              |
+              +------ STORE_ORDERS
+              |          |
+              |          +------ ORDER_ITEMS
+              |          |
+              |          +------ SHIPMENTS
+              |
+              +------ PAYMENTS
+              |          |
+              |          +------ PAYMENT_TRANSACTIONS
+              |          |
+              |          +------ REFUNDS
+              |
+              +------ ORDER_STATUS_HISTORY
+              |
+              +------ ORDER_ADDRESSES
+
+
+STORES
+   |
+   +------ CATEGORIES
+   |
+   +------ PRODUCTS
+              |
+              +------ PRODUCT_VARIANTS
+                           |
+                           +------ PRODUCT_PRICES
+                           |
+                           +------ INVENTORY_BALANCES
+                           |
+                           +------ STOCK_MOVEMENTS
+                           |
+                           +------ INVENTORY_RESERVATIONS
+
+
+১৭. গুরুত্বপূর্ণ Constraints ও Indexes
+১৭.১ Primary Constraints
+* সব Primary Key Unique হতে হবে।
+* সব প্রয়োজনীয় Foreign Key Valid হতে হবে।
+* Product SKU Unique হতে হবে।
+* Store Slug Unique হতে হবে।
+* Order Number Unique হতে হবে।
+* Payment Webhook Event Unique হতে হবে।
+* Stock Negative হওয়া যাবে না।
+* Refund Amount বৈধ সীমার মধ্যে থাকতে হবে।
+* Order Quantity অবশ্যই Positive হতে হবে।
+১৭.২ গুরুত্বপূর্ণ Indexes
+প্রাথমিকভাবে Index প্রয়োজন হবে:
+Table
+	Column
+	products
+	store_id, status
+	products
+	category_id
+	product_variants
+	product_id
+	product_prices
+	variant_id, is_active
+	inventory_balances
+	warehouse_id, variant_id
+	stock_movements
+	variant_id, created_at
+	orders
+	user_id, created_at
+	orders
+	order_number
+	store_orders
+	store_id, status
+	payments
+	order_id, status
+	shipments
+	tracking_number
+	payment_webhook_events
+	provider, provider_event_id
+	support_tickets
+	user_id, status
+	Index বাস্তব Query ও Performance পরীক্ষা করে প্রয়োজন অনুযায়ী বাড়াতে হবে।
+১৮. Database Transaction Rules
+১৮.১ Checkout Transaction
+একটি Checkout-এর মধ্যে:
+1. Cart যাচাই।
+2. Product ও Price যাচাই।
+3. Stock Lock/Reservation।
+4. Parent Order তৈরি।
+5. Store Order তৈরি।
+6. Order Items Snapshot তৈরি।
+7. Order Address Snapshot তৈরি।
+8. প্রয়োজনীয় Outbox Event তৈরি।
+সব Database Operation সঠিকভাবে সম্পন্ন হলে Transaction Commit হবে।
+কোনো গুরুত্বপূর্ণ Operation ব্যর্থ হলে Transaction Rollback হবে।
+১৮.২ Payment Webhook Transaction
+1. Webhook Signature যাচাই।
+2. Event ID পরীক্ষা।
+3. Event Record তৈরি।
+4. Payment Status যাচাই।
+5. Payment Transaction তৈরি।
+6. প্রয়োজনীয় Order Update।
+7. Outbox Event তৈরি।
+8. Commit।
+Duplicate Event এলে একই Financial Action দ্বিতীয়বার করা যাবে না।
+১৮.৩ Refund Transaction
+* Refund Amount যাচাই।
+* পূর্বের Refund হিসাব করা।
+* অনুমোদন যাচাই।
+* Refund Request তৈরি।
+* Provider Response সংরক্ষণ।
+* সফল হলে Payment Status Update।
+* Audit ও Outbox Event তৈরি।
+External Provider Call এবং Database Transaction-এর মধ্যে ব্যর্থতা হতে পারে। তাই Refund-কে Retry ও Reconciliation-সমর্থিত Workflow হিসেবে তৈরি করতে হবে।
+১৯. Row Level Security (RLS)
+Supabase PostgreSQL-এ RLS ব্যবহার করা হবে।
+প্রধান নিয়ম:
+* Customer নিজের Profile দেখতে পারবেন।
+* Customer নিজের Address দেখতে ও পরিবর্তন করতে পারবেন।
+* Customer নিজের Order দেখতে পারবেন।
+* Store Manager শুধু অনুমোদিত Store পরিচালনা করবেন।
+* Inventory Manager অনুমোদিত Inventory পরিচালনা করবেন।
+* Owner প্রয়োজনীয় অনুমোদিত সব Store পরিচালনা করতে পারবেন।
+FastAPI-এর প্রতিটি Request-এ Authorization যাচাই করতে হবে।
+RLS অতিরিক্ত সুরক্ষা; এটি Backend Authorization-এর বিকল্প নয়।
+Database Migration ও প্রশাসনিক কাজের জন্য আলাদা নিরাপদ Server-side Permission ব্যবহার করতে হবে।
+২০. Database Migration Plan
+Database পরিবর্তন Version-controlled Migration-এর মাধ্যমে হবে।
+প্রস্তাবিত Migration Sequence:
+Migration
+	বিষয়
+	001
+	Extensions ও Shared Conventions
+	002
+	Identity ও Roles
+	003
+	Stores ও Policies
+	004
+	Categories ও Products
+	005
+	Product Variants ও Pricing
+	006
+	Inventory
+	007
+	Cart
+	008
+	Orders
+	009
+	Payments ও Refunds
+	010
+	Courier ও Shipments
+	011
+	Returns ও Support
+	012
+	Audit ও Outbox
+	013
+	Notifications ও Idempotency
+	014
+	Indexes ও RLS Policies
+	015
+	Initial Seed Data
+	প্রতিটি Migration:
+* Versioned হবে।
+* GitHub-এ সংরক্ষিত থাকবে।
+* Staging-এ পরীক্ষা করা হবে।
+* Production-এ অনুমোদিত পদ্ধতিতে প্রয়োগ হবে।
+* প্রয়োজনে Rollback বা Forward-fix পরিকল্পনা থাকবে।
+২১. Backup ও Recovery
+* Production Database-এর Automated Backup থাকতে হবে।
+* Backup Retention Policy নির্ধারণ করতে হবে।
+* নিয়মিত Restore Test করতে হবে।
+* গুরুত্বপূর্ণ Migration-এর আগে Backup নিতে হবে।
+* Production Access সীমিত রাখতে হবে।
+* Recovery Time Objective (RTO) ও Recovery Point Objective (RPO) ব্যবসায়িক প্রয়োজন অনুযায়ী নির্ধারণ করতে হবে।
+শুধু Backup নেওয়া যথেষ্ট নয়; Backup থেকে Database পুনরুদ্ধার করা যায় কি না তা পরীক্ষা করতে হবে।
+২২. ভবিষ্যৎ Database Expansion
+ভবিষ্যতে প্রয়োজন হলে যুক্ত করা যাবে:
+* Seller Accounts।
+* Seller Stores।
+* Commission Records।
+* Loyalty Points।
+* Customer Reviews।
+* Wishlist।
+* Coupon Management।
+* Product Recommendations।
+* Advanced Search।
+* Analytics Events।
+* AI Knowledge Base।
+প্রাথমিক সংস্করণে প্রয়োজন না হলে এগুলোর Table তৈরি করা বাধ্যতামূলক নয়।
+২৩. V1 Implementation Priority
+Must Have
+* Profiles ও Addresses।
+* Roles ও Permissions।
+* Stores।
+* Categories।
+* Products।
+* Product Variants।
+* Product Prices।
+* Inventory Balances।
+* Stock Movements।
+* Inventory Reservations।
+* Carts।
+* Orders।
+* Store Orders।
+* Order Items।
+* Order Addresses।
+* Payments।
+* Payment Transactions।
+* Webhook Events।
+* Shipments।
+* Audit Logs।
+Should Have
+* Returns।
+* Support Tickets।
+* Refunds।
+* Outbox Events।
+* Notifications।
+* Expenses।
+* Daily Reports।
+Future
+* Seller Management।
+* Commission Management।
+* Loyalty।
+* Advanced Accounting।
+* AI Analytics।
+২৪. চূড়ান্ত Database Decision
+বিষয়
+	সিদ্ধান্ত
+	Database
+	PostgreSQL
+	Platform
+	Supabase
+	Primary Key
+	UUID
+	Money Type
+	NUMERIC
+	Date/Time
+	TIMESTAMPTZ
+	Flexible Attributes
+	JSONB
+	Inventory History
+	Immutable Stock Ledger
+	Order Structure
+	Parent + Store Orders
+	Payment Events
+	Idempotent Webhook
+	Security
+	RBAC + RLS
+	Schema Changes
+	Versioned Migrations
+	Backup
+	Automated + Restore Testing
+	________________
+
+
+২৫. সমাপ্তি
+Aura Bell-এর Database Schema এমনভাবে ডিজাইন করা হয়েছে যাতে প্রাথমিকভাবে Best Gadget ও Aura Skin Care পরিচালনা করা যায় এবং ভবিষ্যতে নতুন Store ও Business Module যুক্ত করা সম্ভব হয়।
+Database-এর মূল লক্ষ্য:
+1. Data Integrity।
+2. Security।
+3. Inventory Accuracy।
+4. Financial Traceability।
+5. Reliable Order Processing।
+6. Maintainability।
+7. Future Scalability।
+Document Status: Version 1.0 — Database Reference
+Document Code: AB-DB-001
+Project: Aura Bell
+গুরুত্বপূর্ণ: এটি অনুমোদনের জন্য প্রস্তুত Logical Database Blueprint। Production SQL Migration তৈরি করার আগে Schema Review, Constraint Validation, RLS Policy Design এবং Transaction Testing সম্পন্ন করতে হবে।
+AURA BELL — DATABASE SCHEMA
+প্রকল্প: Aura Bell
+ডকুমেন্ট কোড: AB-DB-001
+সংস্করণ: 1.0
+তারিখ: ০৪ নভেম্বর ২০২৬
+Database Engine: PostgreSQL
+Database Platform: Supabase
+Architecture: Modular Monolith
+প্রধান বাজার: বাংলাদেশ
+________________
+
+
+১. Database-এর উদ্দেশ্য
+Aura Bell-এর Database এমনভাবে ডিজাইন করা হবে, যাতে একাধিক স্টোর, গ্রাহক, পণ্য, ইনভেন্টরি, অর্ডার, পেমেন্ট, ডেলিভারি ও ব্যবসায়িক হিসাব একটি কেন্দ্রীয় Database থেকে পরিচালনা করা যায়।
+প্রাথমিক স্টোর:
+1. Best Gadget।
+2. Aura Skin Care।
+প্রতিটি স্টোরের নিজস্ব পণ্য ও ব্যবসায়িক তথ্য থাকবে। তবে Customer, Cart, Checkout এবং Order Management কেন্দ্রীয়ভাবে পরিচালিত হবে।
+১.১ মূল Database নীতিমালা
+* PostgreSQL হবে মূল Database।
+* প্রতিটি প্রধান Table-এ UUID Primary Key থাকবে।
+* Date ও Time সংরক্ষণে TIMESTAMPTZ ব্যবহার হবে।
+* অর্থের পরিমাণে NUMERIC ব্যবহার হবে, FLOAT নয়।
+* সব গুরুত্বপূর্ণ Relationship-এ Foreign Key থাকবে।
+* প্রয়োজনীয় Unique ও Check Constraint থাকবে।
+* Stock Movement ও Financial Transaction-এর ইতিহাস সংরক্ষণ করা হবে।
+* Database পরিবর্তন Migration-এর মাধ্যমে হবে।
+* Production Database-এ সরাসরি অনিয়ন্ত্রিত পরিবর্তন করা যাবে না।
+২. Database Architecture
+                 AURA BELL DATABASE
+                          |
+        +-----------------+-----------------+
+        |                 |                 |
+        v                 v                 v
+    IDENTITY            STORES             CATALOG
+        |                 |                 |
+        v                 v                 v
+    PROFILES          STORE POLICIES      PRODUCTS
+    ADDRESSES                             CATEGORIES
+    ROLES                                 VARIANTS
+                                              |
+                                              v
+                                          INVENTORY
+                                              |
+                                              v
+                                           CART
+                                              |
+                                              v
+                                            ORDERS
+                                              |
+                                  +-----------+-----------+
+                                  |                       |
+                                  v                       v
+                               PAYMENTS                SHIPMENTS
+                                  |
+                                  v
+                                REFUNDS
+
+
+৩. Database Naming Convention
+বিষয়
+	নিয়ম
+	Table Name
+	snake_case, plural
+	Column Name
+	snake_case
+	Primary Key
+	id
+	Foreign Key
+	সংশ্লিষ্ট Table-এর নাম + _id
+	Primary Key Type
+	UUID
+	Timestamp
+	TIMESTAMPTZ
+	Money
+	NUMERIC(12,2)
+	Quantity
+	প্রয়োজন অনুযায়ী INTEGER বা NUMERIC
+	Boolean
+	BOOLEAN
+	JSON Data
+	JSONB
+	প্রতিটি Table-এ প্রয়োজন অনুযায়ী:
+* id
+* created_at
+* updated_at
+থাকবে।
+সব Table-এ অপ্রয়োজনীয় Column যোগ করা হবে না।
+৪. Identity & User Management
+এই Module-এ গ্রাহক, Admin এবং Staff-এর পরিচয় ও Permission পরিচালিত হবে।
+৪.১ profiles
+গ্রাহকের মূল Profile।
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Supabase Auth User ID
+	full_name
+	VARCHAR(150)
+	নাম
+	phone
+	VARCHAR(20)
+	ফোন নম্বর
+	email
+	VARCHAR(255)
+	ইমেইল
+	avatar_url
+	TEXT
+	Profile Image
+	status
+	VARCHAR(20)
+	Account Status
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	updated_at
+	TIMESTAMPTZ
+	পরিবর্তনের সময়
+	id Supabase Auth-এর User ID-এর সঙ্গে যুক্ত থাকবে।
+৪.২ addresses
+গ্রাহকের Delivery Address।
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Address ID
+	user_id
+	UUID FK
+	Customer
+	recipient_name
+	VARCHAR(150)
+	গ্রহণকারীর নাম
+	phone
+	VARCHAR(20)
+	ফোন
+	division
+	VARCHAR(100)
+	বিভাগ
+	district
+	VARCHAR(100)
+	জেলা
+	upazila
+	VARCHAR(100)
+	উপজেলা
+	area
+	VARCHAR(150)
+	এলাকা
+	address_line
+	TEXT
+	বিস্তারিত ঠিকানা
+	postal_code
+	VARCHAR(20)
+	পোস্ট কোড
+	is_default
+	BOOLEAN
+	Default Address
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	একজন Customer-এর একাধিক Address থাকতে পারবে।
+৪.৩ roles
+Column
+	Type
+	id
+	UUID PK
+	name
+	VARCHAR(50)
+	description
+	TEXT
+	প্রাথমিক Role:
+* owner
+* admin
+* store_manager
+* inventory_manager
+* order_manager
+* support_agent
+* customer
+৪.৪ permissions
+Column
+	Type
+	id
+	UUID PK
+	code
+	VARCHAR(100) UNIQUE
+	description
+	TEXT
+	৪.৫ user_roles
+একজন User একাধিক Role পেতে পারবেন।
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK
+	role_id
+	UUID FK
+	store_id
+	UUID FK, nullable
+	assigned_by
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	store_id নির্দিষ্ট করলে সেই Role নির্দিষ্ট Store-এর জন্য প্রযোজ্য হবে।
+৪.৬ role_permissions
+Column
+	Type
+	role_id
+	UUID FK
+	permission_id
+	UUID FK
+	Composite Primary Key:
+(role_id, permission_id)
+৫. Store Management
+৫.১ stores
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Store ID
+	name
+	VARCHAR(150)
+	Store Name
+	slug
+	VARCHAR(150) UNIQUE
+	URL Slug
+	description
+	TEXT
+	বিবরণ
+	logo_url
+	TEXT
+	Logo
+	primary_color
+	VARCHAR(20)
+	Brand Color
+	status
+	VARCHAR(20)
+	Active/Inactive
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	updated_at
+	TIMESTAMPTZ
+	পরিবর্তনের সময়
+	প্রাথমিক Store Data:
+* Best Gadget
+* Aura Skin Care
+৫.২ store_policies
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	policy_type
+	VARCHAR(50)
+	policy_content
+	JSONB
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	এখানে Store-specific Return ও Warranty Policy রাখা যাবে।
+৬. Product Catalog
+৬.১ categories
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	parent_id
+	UUID FK, nullable
+	name
+	VARCHAR(150)
+	slug
+	VARCHAR(150)
+	description
+	TEXT
+	image_url
+	TEXT
+	sort_order
+	INTEGER
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	একটি Category-এর অধীনে Subcategory থাকতে পারবে।
+একই Store-এর মধ্যে Category Slug Unique হবে।
+৬.২ products
+Column
+	Type
+	Description
+	id
+	UUID PK
+	Product ID
+	store_id
+	UUID FK
+	Store
+	category_id
+	UUID FK, nullable
+	Category
+	name
+	VARCHAR(255)
+	Product Name
+	slug
+	VARCHAR(255)
+	URL Slug
+	description
+	TEXT
+	Description
+	brand
+	VARCHAR(150)
+	Brand
+	product_type
+	VARCHAR(50)
+	Product Type
+	status
+	VARCHAR(30)
+	Draft/Active/Archived
+	is_featured
+	BOOLEAN
+	Featured
+	created_at
+	TIMESTAMPTZ
+	তৈরির সময়
+	updated_at
+	TIMESTAMPTZ
+	পরিবর্তনের সময়
+	একটি Product একটি Store-এর অন্তর্ভুক্ত হবে।
+৬.৩ product_variants
+একটি Product-এর একাধিক Variant থাকতে পারবে।
+Column
+	Type
+	id
+	UUID PK
+	product_id
+	UUID FK
+	sku
+	VARCHAR(100) UNIQUE
+	variant_name
+	VARCHAR(150)
+	attributes
+	JSONB
+	barcode
+	VARCHAR(100), nullable
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	উদাহরণ:
+একটি Smartphone-এর বিভিন্ন Storage ও Color Variant থাকতে পারে।
+একটি Skincare Product-এর বিভিন্ন Size থাকতে পারে।
+৬.৪ product_images
+Column
+	Type
+	id
+	UUID PK
+	product_id
+	UUID FK
+	image_url
+	TEXT
+	alt_text
+	VARCHAR(255)
+	sort_order
+	INTEGER
+	is_primary
+	BOOLEAN
+	৬.৫ product_attributes
+Column
+	Type
+	id
+	UUID PK
+	product_id
+	UUID FK
+	attribute_name
+	VARCHAR(100)
+	attribute_value
+	TEXT
+	উদাহরণ:
+* Ingredients
+* Skin Type
+* Warranty Period
+* Material
+* Country of Origin
+এটি প্রাথমিক Flexible Attribute Model। ভবিষ্যতে প্রয়োজন হলে Category-specific structured attributes যুক্ত করা যাবে।
+৭. Pricing Management
+৭.১ product_prices
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	currency_code
+	CHAR(3)
+	selling_price
+	NUMERIC(12,2)
+	compare_at_price
+	NUMERIC(12,2), nullable
+	effective_from
+	TIMESTAMPTZ
+	effective_until
+	TIMESTAMPTZ, nullable
+	is_active
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	প্রাথমিক Currency:
+BDT
+একটি Variant-এর একই সময়ে একাধিক Active Price তৈরি হতে দেওয়া যাবে না।
+৭.২ promotions (ঐচ্ছিক)
+Column
+	Type
+	id
+	UUID PK
+	name
+	VARCHAR(150)
+	discount_type
+	VARCHAR(30)
+	discount_value
+	NUMERIC(12,2)
+	start_at
+	TIMESTAMPTZ
+	end_at
+	TIMESTAMPTZ
+	is_active
+	BOOLEAN
+	প্রাথমিক Launch-এ সাধারণ Discount যথেষ্ট। জটিল Promotion Engine পরে তৈরি করা যাবে।
+৮. Inventory Management
+Inventory Aura Bell-এর অত্যন্ত গুরুত্বপূর্ণ Module।
+৮.১ warehouses
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	name
+	VARCHAR(150)
+	location
+	TEXT
+	is_active
+	BOOLEAN
+	৮.২ inventory_balances
+বর্তমান Stock সংরক্ষণ করবে।
+Column
+	Type
+	id
+	UUID PK
+	warehouse_id
+	UUID FK
+	variant_id
+	UUID FK
+	quantity_on_hand
+	INTEGER
+	quantity_reserved
+	INTEGER
+	updated_at
+	TIMESTAMPTZ
+	Available Stock:
+quantity_on_hand - quantity_reserved
+Constraint:
+* quantity_on_hand >= 0
+* quantity_reserved >= 0
+* quantity_reserved <= quantity_on_hand
+Unique:
+(warehouse_id, variant_id)
+৮.৩ stock_movements
+Stock পরিবর্তনের অপরিবর্তনীয় ইতিহাস।
+Column
+	Type
+	id
+	UUID PK
+	warehouse_id
+	UUID FK
+	variant_id
+	UUID FK
+	movement_type
+	VARCHAR(40)
+	quantity_delta
+	INTEGER
+	reference_type
+	VARCHAR(50)
+	reference_id
+	UUID, nullable
+	note
+	TEXT
+	created_by
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	Movement Type-এর উদাহরণ:
+* PURCHASE
+* SALE
+* RETURN
+* ADJUSTMENT
+* TRANSFER
+* DAMAGE
+Stock Movement-এর পুরোনো রেকর্ড সাধারণত Update বা Delete করা যাবে না। ভুল সংশোধন করতে বিপরীত Movement তৈরি করতে হবে।
+৮.৪ inventory_reservations
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	warehouse_id
+	UUID FK
+	order_id
+	UUID FK, nullable
+	quantity
+	INTEGER
+	status
+	VARCHAR(30)
+	expires_at
+	TIMESTAMPTZ
+	created_at
+	TIMESTAMPTZ
+	Status:
+* ACTIVE
+* CONSUMED
+* RELEASED
+* EXPIRED
+৮.৫ product_batches
+বিশেষত Aura Skin Care-এর জন্য।
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	batch_number
+	VARCHAR(100)
+	manufacture_date
+	DATE, nullable
+	expiry_date
+	DATE
+	quantity_received
+	INTEGER
+	created_at
+	TIMESTAMPTZ
+	একই Variant-এর একই Batch Number পুনরায় তৈরি করা যাবে না।
+৮.৬ product_serials
+প্রয়োজন অনুযায়ী Best Gadget-এর জন্য।
+Column
+	Type
+	id
+	UUID PK
+	variant_id
+	UUID FK
+	serial_number
+	VARCHAR(150) UNIQUE
+	status
+	VARCHAR(30)
+	order_item_id
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	IMEI বা Serial সংরক্ষণ করার আগে প্রয়োজনীয় গোপনীয়তা ও নিরাপত্তা ব্যবস্থা নিতে হবে।
+৯. Shopping Cart
+৯.১ carts
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK, nullable
+	session_id
+	VARCHAR(150), nullable
+	status
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	Guest Cart-এর জন্য Session ID ব্যবহার করা যাবে।
+৯.২ cart_items
+Column
+	Type
+	id
+	UUID PK
+	cart_id
+	UUID FK
+	variant_id
+	UUID FK
+	quantity
+	INTEGER
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	একটি Cart-এ একই Variant-এর একাধিক Duplicate Row রাখা হবে না।
+Cart-এর Price কেবল Display-এর জন্য Cache করা যেতে পারে। Checkout-এর সময় Backend বর্তমান Price পুনরায় যাচাই করবে।
+১০. Order Management
+১০.১ orders
+এটি Parent Order Table।
+Column
+	Type
+	id
+	UUID PK
+	order_number
+	VARCHAR(50) UNIQUE
+	user_id
+	UUID FK
+	subtotal
+	NUMERIC(12,2)
+	discount_total
+	NUMERIC(12,2)
+	delivery_total
+	NUMERIC(12,2)
+	grand_total
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	order_status
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	১০.২ store_orders
+একটি Parent Order-এর অধীনে একাধিক Store Order থাকবে।
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	store_id
+	UUID FK
+	store_order_number
+	VARCHAR(50) UNIQUE
+	subtotal
+	NUMERIC(12,2)
+	delivery_fee
+	NUMERIC(12,2)
+	status
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	Unique:
+(order_id, store_id)
+একই Parent Order-এর মধ্যে একটি Store-এর জন্য একটি Store Order থাকবে।
+১০.৩ order_items
+Column
+	Type
+	id
+	UUID PK
+	store_order_id
+	UUID FK
+	variant_id
+	UUID FK, nullable
+	product_name_snapshot
+	VARCHAR(255)
+	sku_snapshot
+	VARCHAR(100)
+	variant_snapshot
+	JSONB
+	unit_price
+	NUMERIC(12,2)
+	quantity
+	INTEGER
+	discount_amount
+	NUMERIC(12,2)
+	line_total
+	NUMERIC(12,2)
+	created_at
+	TIMESTAMPTZ
+	Order Item Snapshot রাখার কারণ:
+ভবিষ্যতে Product Name, SKU বা Price পরিবর্তন হলেও পুরোনো Order-এর তথ্য পরিবর্তিত হবে না।
+১০.৪ order_addresses
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	recipient_name
+	VARCHAR(150)
+	phone
+	VARCHAR(20)
+	division
+	VARCHAR(100)
+	district
+	VARCHAR(100)
+	upazila
+	VARCHAR(100)
+	area
+	VARCHAR(150)
+	address_line
+	TEXT
+	postal_code
+	VARCHAR(20), nullable
+	created_at
+	TIMESTAMPTZ
+	এটি Order তৈরির সময়ের Address Snapshot সংরক্ষণ করবে।
+১০.৫ order_status_history
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	old_status
+	VARCHAR(30)
+	new_status
+	VARCHAR(30)
+	changed_by
+	UUID FK, nullable
+	note
+	TEXT
+	created_at
+	TIMESTAMPTZ
+	১১. Payment & Financial Records
+১১.১ payments
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	provider
+	VARCHAR(50)
+	provider_reference
+	VARCHAR(150), nullable
+	payment_method
+	VARCHAR(40)
+	amount
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	status
+	VARCHAR(30)
+	paid_at
+	TIMESTAMPTZ, nullable
+	created_at
+	TIMESTAMPTZ
+	১১.২ payment_transactions
+Column
+	Type
+	id
+	UUID PK
+	payment_id
+	UUID FK
+	provider_transaction_id
+	VARCHAR(150), nullable
+	transaction_type
+	VARCHAR(30)
+	amount
+	NUMERIC(12,2)
+	status
+	VARCHAR(30)
+	response_data
+	JSONB
+	created_at
+	TIMESTAMPTZ
+	১১.৩ payment_webhook_events
+Column
+	Type
+	id
+	UUID PK
+	provider
+	VARCHAR(50)
+	provider_event_id
+	VARCHAR(200)
+	event_type
+	VARCHAR(100)
+	payload
+	JSONB
+	processing_status
+	VARCHAR(30)
+	processed_at
+	TIMESTAMPTZ, nullable
+	received_at
+	TIMESTAMPTZ
+	Unique Constraint:
+(provider, provider_event_id)
+এটি Duplicate Webhook Processing প্রতিরোধ করবে।
+Sensitive Payment Data অপ্রয়োজনে সংরক্ষণ করা যাবে না।
+১১.৪ refunds
+Column
+	Type
+	id
+	UUID PK
+	payment_id
+	UUID FK
+	amount
+	NUMERIC(12,2)
+	reason
+	TEXT
+	status
+	VARCHAR(30)
+	provider_reference
+	VARCHAR(150), nullable
+	created_at
+	TIMESTAMPTZ
+	একটি Payment-এর একাধিক Partial Refund থাকতে পারে।
+সব Refund-এর মোট পরিমাণ মূল Payment-এর পরিমাণ অতিক্রম করতে পারবে না।
+১১.৫ expenses
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK, nullable
+	category
+	VARCHAR(80)
+	amount
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	description
+	TEXT
+	expense_date
+	DATE
+	created_by
+	UUID FK, nullable
+	created_at
+	TIMESTAMPTZ
+	Expense Category-এর উদাহরণ:
+* PURCHASE
+* PACKAGING
+* COURIER
+* GATEWAY_FEE
+* MARKETING
+* FAILED_COD
+* RETURN
+* OTHER
+১১.৬ financial_entries
+প্রাথমিক পর্যায়ে Business Financial Reporting-এর জন্য ব্যবহার করা যেতে পারে।
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK, nullable
+	reference_type
+	VARCHAR(50)
+	reference_id
+	UUID, nullable
+	entry_type
+	VARCHAR(50)
+	amount
+	NUMERIC(12,2)
+	currency_code
+	CHAR(3)
+	description
+	TEXT
+	created_at
+	TIMESTAMPTZ
+	গুরুত্বপূর্ণ: এই Table একা পূর্ণাঙ্গ Double-Entry Accounting System নয়। ভবিষ্যতে পূর্ণাঙ্গ হিসাবরক্ষণ প্রয়োজন হলে পৃথক Chart of Accounts, Journal ও Journal Lines ডিজাইন করতে হবে।
+১২. Delivery & Shipment
+১২.১ couriers
+Column
+	Type
+	id
+	UUID PK
+	name
+	VARCHAR(150)
+	code
+	VARCHAR(80) UNIQUE
+	api_enabled
+	BOOLEAN
+	is_active
+	BOOLEAN
+	১২.২ shipments
+Column
+	Type
+	id
+	UUID PK
+	store_order_id
+	UUID FK
+	courier_id
+	UUID FK, nullable
+	tracking_number
+	VARCHAR(150), nullable
+	status
+	VARCHAR(30)
+	delivery_fee
+	NUMERIC(12,2)
+	booked_at
+	TIMESTAMPTZ, nullable
+	delivered_at
+	TIMESTAMPTZ, nullable
+	created_at
+	TIMESTAMPTZ
+	একটি Store Order-এর প্রয়োজন অনুযায়ী একাধিক Shipment থাকতে পারে।
+১২.৩ shipment_events
+Column
+	Type
+	id
+	UUID PK
+	shipment_id
+	UUID FK
+	status
+	VARCHAR(30)
+	description
+	TEXT
+	event_time
+	TIMESTAMPTZ
+	raw_data
+	JSONB
+	১৩. Return & Customer Support
+১৩.১ return_requests
+Column
+	Type
+	id
+	UUID PK
+	order_id
+	UUID FK
+	store_order_id
+	UUID FK
+	user_id
+	UUID FK
+	reason
+	TEXT
+	status
+	VARCHAR(30)
+	requested_at
+	TIMESTAMPTZ
+	resolved_at
+	TIMESTAMPTZ, nullable
+	১৩.২ return_items
+Column
+	Type
+	id
+	UUID PK
+	return_request_id
+	UUID FK
+	order_item_id
+	UUID FK
+	quantity
+	INTEGER
+	condition
+	VARCHAR(50)
+	resolution
+	VARCHAR(50)
+	১৩.৩ support_tickets
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK
+	order_id
+	UUID FK, nullable
+	subject
+	VARCHAR(255)
+	status
+	VARCHAR(30)
+	priority
+	VARCHAR(30)
+	created_at
+	TIMESTAMPTZ
+	updated_at
+	TIMESTAMPTZ
+	১৩.৪ support_messages
+Column
+	Type
+	id
+	UUID PK
+	ticket_id
+	UUID FK
+	sender_id
+	UUID FK
+	message
+	TEXT
+	created_at
+	TIMESTAMPTZ
+	১৪. System Operations
+১৪.১ audit_logs
+Column
+	Type
+	id
+	UUID PK
+	actor_id
+	UUID FK, nullable
+	action
+	VARCHAR(100)
+	entity_type
+	VARCHAR(100)
+	entity_id
+	UUID, nullable
+	changes
+	JSONB
+	ip_address
+	INET, nullable
+	created_at
+	TIMESTAMPTZ
+	Audit Log-এ Password, Access Token বা সংবেদনশীল Payment Data রাখা যাবে না।
+১৪.২ outbox_events
+Column
+	Type
+	id
+	UUID PK
+	event_type
+	VARCHAR(150)
+	aggregate_type
+	VARCHAR(100)
+	aggregate_id
+	UUID
+	payload
+	JSONB
+	status
+	VARCHAR(30)
+	attempts
+	INTEGER
+	available_at
+	TIMESTAMPTZ
+	processed_at
+	TIMESTAMPTZ, nullable
+	created_at
+	TIMESTAMPTZ
+	এটি Background Worker-এর জন্য ব্যবহৃত হবে।
+১৪.৩ notifications
+Column
+	Type
+	id
+	UUID PK
+	user_id
+	UUID FK
+	notification_type
+	VARCHAR(80)
+	title
+	VARCHAR(255)
+	message
+	TEXT
+	is_read
+	BOOLEAN
+	created_at
+	TIMESTAMPTZ
+	১৪.৪ notification_templates
+Column
+	Type
+	id
+	UUID PK
+	template_key
+	VARCHAR(100) UNIQUE
+	channel
+	VARCHAR(30)
+	language
+	VARCHAR(10)
+	subject
+	VARCHAR(255), nullable
+	body
+	TEXT
+	is_active
+	BOOLEAN
+	১৪.৫ idempotency_keys
+Column
+	Type
+	id
+	UUID PK
+	key
+	VARCHAR(200)
+	user_id
+	UUID FK, nullable
+	endpoint
+	VARCHAR(200)
+	request_hash
+	VARCHAR(128)
+	response_data
+	JSONB, nullable
+	status
+	VARCHAR(30)
+	expires_at
+	TIMESTAMPTZ
+	created_at
+	TIMESTAMPTZ
+	Unique Constraint:
+(key, endpoint)
+একই Idempotency Key-এর সঙ্গে ভিন্ন Request পাঠালে তা গ্রহণ করা যাবে না।
+১৫. Daily Reports
+১৫.১ daily_reports
+Column
+	Type
+	id
+	UUID PK
+	store_id
+	UUID FK
+	report_date
+	DATE
+	total_orders
+	INTEGER
+	total_sales
+	NUMERIC(12,2)
+	total_refunds
+	NUMERIC(12,2)
+	total_expenses
+	NUMERIC(12,2)
+	created_at
+	TIMESTAMPTZ
+	Unique:
+(store_id, report_date)
+এই Table হবে Reporting Cache বা Summary। মূল Order ও Transaction Records-এর বিকল্প নয়।
+১৬. Table Relationships
+প্রধান Relationship:
+AUTH USERS
+    |
+    v
+PROFILES
+    |
+    +------ ADDRESSES
+    |
+    +------ USER_ROLES
+    |
+    +------ CARTS
+    |
+    +------ ORDERS
+              |
+              +------ STORE_ORDERS
+              |          |
+              |          +------ ORDER_ITEMS
+              |          |
+              |          +------ SHIPMENTS
+              |
+              +------ PAYMENTS
+              |          |
+              |          +------ PAYMENT_TRANSACTIONS
+              |          |
+              |          +------ REFUNDS
+              |
+              +------ ORDER_STATUS_HISTORY
+              |
+              +------ ORDER_ADDRESSES
+
+
+STORES
+   |
+   +------ CATEGORIES
+   |
+   +------ PRODUCTS
+              |
+              +------ PRODUCT_VARIANTS
+                           |
+                           +------ PRODUCT_PRICES
+                           |
+                           +------ INVENTORY_BALANCES
+                           |
+                           +------ STOCK_MOVEMENTS
+                           |
+                           +------ INVENTORY_RESERVATIONS
+
+
+১৭. গুরুত্বপূর্ণ Constraints ও Indexes
+১৭.১ Primary Constraints
+* সব Primary Key Unique হতে হবে।
+* সব প্রয়োজনীয় Foreign Key Valid হতে হবে।
+* Product SKU Unique হতে হবে।
+* Store Slug Unique হতে হবে।
+* Order Number Unique হতে হবে।
+* Payment Webhook Event Unique হতে হবে।
+* Stock Negative হওয়া যাবে না।
+* Refund Amount বৈধ সীমার মধ্যে থাকতে হবে।
+* Order Quantity অবশ্যই Positive হতে হবে।
+১৭.২ গুরুত্বপূর্ণ Indexes
+প্রাথমিকভাবে Index প্রয়োজন হবে:
+Table
+	Column
+	products
+	store_id, status
+	products
+	category_id
+	product_variants
+	product_id
+	product_prices
+	variant_id, is_active
+	inventory_balances
+	warehouse_id, variant_id
+	stock_movements
+	variant_id, created_at
+	orders
+	user_id, created_at
+	orders
+	order_number
+	store_orders
+	store_id, status
+	payments
+	order_id, status
+	shipments
+	tracking_number
+	payment_webhook_events
+	provider, provider_event_id
+	support_tickets
+	user_id, status
+	Index বাস্তব Query ও Performance পরীক্ষা করে প্রয়োজন অনুযায়ী বাড়াতে হবে।
+১৮. Database Transaction Rules
+১৮.১ Checkout Transaction
+একটি Checkout-এর মধ্যে:
+1. Cart যাচাই।
+2. Product ও Price যাচাই।
+3. Stock Lock/Reservation।
+4. Parent Order তৈরি।
+5. Store Order তৈরি।
+6. Order Items Snapshot তৈরি।
+7. Order Address Snapshot তৈরি।
+8. প্রয়োজনীয় Outbox Event তৈরি।
+সব Database Operation সঠিকভাবে সম্পন্ন হলে Transaction Commit হবে।
+কোনো গুরুত্বপূর্ণ Operation ব্যর্থ হলে Transaction Rollback হবে।
+১৮.২ Payment Webhook Transaction
+1. Webhook Signature যাচাই।
+2. Event ID পরীক্ষা।
+3. Event Record তৈরি।
+4. Payment Status যাচাই।
+5. Payment Transaction তৈরি।
+6. প্রয়োজনীয় Order Update।
+7. Outbox Event তৈরি।
+8. Commit।
+Duplicate Event এলে একই Financial Action দ্বিতীয়বার করা যাবে না।
+১৮.৩ Refund Transaction
+* Refund Amount যাচাই।
+* পূর্বের Refund হিসাব করা।
+* অনুমোদন যাচাই।
+* Refund Request তৈরি।
+* Provider Response সংরক্ষণ।
+* সফল হলে Payment Status Update।
+* Audit ও Outbox Event তৈরি।
+External Provider Call এবং Database Transaction-এর মধ্যে ব্যর্থতা হতে পারে। তাই Refund-কে Retry ও Reconciliation-সমর্থিত Workflow হিসেবে তৈরি করতে হবে।
+১৯. Row Level Security (RLS)
+Supabase PostgreSQL-এ RLS ব্যবহার করা হবে।
+প্রধান নিয়ম:
+* Customer নিজের Profile দেখতে পারবেন।
+* Customer নিজের Address দেখতে ও পরিবর্তন করতে পারবেন।
+* Customer নিজের Order দেখতে পারবেন।
+* Store Manager শুধু অনুমোদিত Store পরিচালনা করবেন।
+* Inventory Manager অনুমোদিত Inventory পরিচালনা করবেন।
+* Owner প্রয়োজনীয় অনুমোদিত সব Store পরিচালনা করতে পারবেন।
+FastAPI-এর প্রতিটি Request-এ Authorization যাচাই করতে হবে।
+RLS অতিরিক্ত সুরক্ষা; এটি Backend Authorization-এর বিকল্প নয়।
+Database Migration ও প্রশাসনিক কাজের জন্য আলাদা নিরাপদ Server-side Permission ব্যবহার করতে হবে।
+২০. Database Migration Plan
+Database পরিবর্তন Version-controlled Migration-এর মাধ্যমে হবে।
+প্রস্তাবিত Migration Sequence:
+Migration
+	বিষয়
+	001
+	Extensions ও Shared Conventions
+	002
+	Identity ও Roles
+	003
+	Stores ও Policies
+	004
+	Categories ও Products
+	005
+	Product Variants ও Pricing
+	006
+	Inventory
+	007
+	Cart
+	008
+	Orders
+	009
+	Payments ও Refunds
+	010
+	Courier ও Shipments
+	011
+	Returns ও Support
+	012
+	Audit ও Outbox
+	013
+	Notifications ও Idempotency
+	014
+	Indexes ও RLS Policies
+	015
+	Initial Seed Data
+	প্রতিটি Migration:
+* Versioned হবে।
+* GitHub-এ সংরক্ষিত থাকবে।
+* Staging-এ পরীক্ষা করা হবে।
+* Production-এ অনুমোদিত পদ্ধতিতে প্রয়োগ হবে।
+* প্রয়োজনে Rollback বা Forward-fix পরিকল্পনা থাকবে।
+২১. Backup ও Recovery
+* Production Database-এর Automated Backup থাকতে হবে।
+* Backup Retention Policy নির্ধারণ করতে হবে।
+* নিয়মিত Restore Test করতে হবে।
+* গুরুত্বপূর্ণ Migration-এর আগে Backup নিতে হবে।
+* Production Access সীমিত রাখতে হবে।
+* Recovery Time Objective (RTO) ও Recovery Point Objective (RPO) ব্যবসায়িক প্রয়োজন অনুযায়ী নির্ধারণ করতে হবে।
+শুধু Backup নেওয়া যথেষ্ট নয়; Backup থেকে Database পুনরুদ্ধার করা যায় কি না তা পরীক্ষা করতে হবে।
+২২. ভবিষ্যৎ Database Expansion
+ভবিষ্যতে প্রয়োজন হলে যুক্ত করা যাবে:
+* Seller Accounts।
+* Seller Stores।
+* Commission Records।
+* Loyalty Points।
+* Customer Reviews।
+* Wishlist।
+* Coupon Management।
+* Product Recommendations।
+* Advanced Search।
+* Analytics Events।
+* AI Knowledge Base।
+প্রাথমিক সংস্করণে প্রয়োজন না হলে এগুলোর Table তৈরি করা বাধ্যতামূলক নয়।
+২৩. V1 Implementation Priority
+Must Have
+* Profiles ও Addresses।
+* Roles ও Permissions।
+* Stores।
+* Categories।
+* Products।
+* Product Variants।
+* Product Prices।
+* Inventory Balances।
+* Stock Movements।
+* Inventory Reservations।
+* Carts।
+* Orders।
+* Store Orders।
+* Order Items।
+* Order Addresses।
+* Payments।
+* Payment Transactions।
+* Webhook Events।
+* Shipments।
+* Audit Logs।
+Should Have
+* Returns।
+* Support Tickets।
+* Refunds।
+* Outbox Events।
+* Notifications।
+* Expenses।
+* Daily Reports।
+Future
+* Seller Management।
+* Commission Management।
+* Loyalty।
+* Advanced Accounting।
+* AI Analytics।
+২৪. চূড়ান্ত Database Decision
+বিষয়
+	সিদ্ধান্ত
+	Database
+	PostgreSQL
+	Platform
+	Supabase
+	Primary Key
+	UUID
+	Money Type
+	NUMERIC
+	Date/Time
+	TIMESTAMPTZ
+	Flexible Attributes
+	JSONB
+	Inventory History
+	Immutable Stock Ledger
+	Order Structure
+	Parent + Store Orders
+	Payment Events
+	Idempotent Webhook
+	Security
+	RBAC + RLS
+	Schema Changes
+	Versioned Migrations
+	Backup
+	Automated + Restore Testing
+	________________
+
+
+২৫. সমাপ্তি
+Aura Bell-এর Database Schema এমনভাবে ডিজাইন করা হয়েছে যাতে প্রাথমিকভাবে Best Gadget ও Aura Skin Care পরিচালনা করা যায় এবং ভবিষ্যতে নতুন Store ও Business Module যুক্ত করা সম্ভব হয়।
+Database-এর মূল লক্ষ্য:
+1. Data Integrity।
+2. Security।
+3. Inventory Accuracy।
+4. Financial Traceability।
+5. Reliable Order Processing।
+6. Maintainability।
+7. Future Scalability।
+Document Status: Version 1.0 — Database Reference
+Document Code: AB-DB-001
+Project: Aura Bell
+গুরুত্বপূর্ণ: এটি অনুমোদনের জন্য প্রস্তুত Logical Database Blueprint। Production SQL Migration তৈরি করার আগে Schema Review, Constraint Validation, RLS Policy Design এবং Transaction Testing সম্পন্ন করতে হবে।

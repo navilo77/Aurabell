@@ -1,0 +1,1999 @@
+---
+id: DOC-AUR-074
+title: Aura Bell — Database Migration Strategy & Complete DDL SQL
+type: database
+status: confirmed
+version: 1.0
+language: Bangla with English technical terms
+source: AB-DM-001 (Google Docs: 1J5zdH03UvBqyTQQ98UFfIFzdNSTcfOLpqLcwlWqYYaE)
+last_updated: 2026-11-04
+---
+
+# Database Migration Strategy & Complete DDL (ডাটাবেজ মাইগ্রেশন ও পূর্ণাঙ্গ এসকিউএল)
+
+## ১. মাইগ্রেশন এক্সিকিউশন সিকোয়েন্স (Sequence of Execution)
+1. পোস্টগ্রেস এক্সটেনশন এনেবল করা (`uuid-ossp`, `pgcrypto`)।
+2. গ্লোবাল টাইমস্ট্যাম্প ট্রিগার ফাংশন তৈরি (`set_updated_at()`)।
+3. আইডেন্টিটি ও স্টোর টেবিল তৈরি।
+4. ক্যাটালগ ও ক্যাটাগরি টেবিল তৈরি।
+5. প্রাইসিং ও ইনভেন্টরি ব্যালেন্স টেবিল তৈরি।
+6. কার্ট ও অর্ডার স্প্লিট টেবিল তৈরি।
+7. পেমেন্ট, রিফান্ড ও কুরিয়ার টেবিল তৈরি।
+8. আউটবক্স ইভেন্ট, অডিট লগ ও অন্যান্য অপারেশন টেবিল তৈরি।
+9. Row Level Security (RLS) পলিসি সক্রিয় করা।
+
+---
+
+## ২. পূর্ণাঙ্গ DDL মাইগ্রেশন এসকিউএল স্ক্রিপ্ট (Complete SQL Migration v1)
+
+```sql
+﻿AURA BELL — DATABASE SQL MIGRATIONS v1
+
+Document Code: AB-SQL-001
+
+Version: 1.0
+
+Database: PostgreSQL
+
+Platform: Supabase
+
+Language: বাংলা
+
+Status: Initial Implementation Blueprint
+
+________________
+
+
+
+
+
+১. Migration Folder Structure
+
+প্রজেক্টে নিচের Structure ব্যবহার করব:
+
+aura-bell/
+
+│
+
+├── apps/
+
+│   ├── web/
+
+│   └── api/
+
+│
+
+├── supabase/
+
+│   ├── config.toml
+
+│   └── migrations/
+
+│       ├── 001_core_identity.sql
+
+│       ├── 002_stores_catalog.sql
+
+│       ├── 003_inventory.sql
+
+│       ├── 004_cart_orders.sql
+
+│       ├── 005_payments_fulfillment.sql
+
+│       ├── 006_returns_support.sql
+
+│       ├── 007_operations.sql
+
+│       ├── 008_indexes.sql
+
+│       ├── 009_rls_policies.sql
+
+│       └── 010_seed_data.sql
+
+│
+
+└── README.md
+
+
+
+
+
+Migration-এর নাম ও ক্রম পরিবর্তন না করে Version Control-এ রাখতে হবে।
+
+২. Migration 001 — Core Identity
+
+ফাইল: 001_core_identity.sql
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+
+
+
+
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+
+RETURNS TRIGGER
+
+LANGUAGE plpgsql
+
+AS $$
+
+BEGIN
+
+    NEW.updated_at = NOW();
+
+    RETURN NEW;
+
+END;
+
+$$;
+
+
+
+
+
+CREATE TABLE public.profiles (
+
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+
+    full_name VARCHAR(150),
+
+    phone VARCHAR(20),
+
+    email VARCHAR(255),
+
+    avatar_url TEXT,
+
+    status VARCHAR(20) NOT NULL DEFAULT 'active'
+
+        CHECK (status IN ('active', 'inactive', 'suspended')),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.addresses (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+
+    recipient_name VARCHAR(150) NOT NULL,
+
+    phone VARCHAR(20) NOT NULL,
+
+    division VARCHAR(100) NOT NULL,
+
+    district VARCHAR(100) NOT NULL,
+
+    upazila VARCHAR(100),
+
+    area VARCHAR(150),
+
+    address_line TEXT NOT NULL,
+
+    postal_code VARCHAR(20),
+
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE UNIQUE INDEX one_default_address_per_user
+
+ON public.addresses(user_id)
+
+WHERE is_default = TRUE;
+
+
+
+
+
+CREATE TABLE public.roles (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    name VARCHAR(50) NOT NULL UNIQUE,
+
+    description TEXT,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.permissions (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    code VARCHAR(100) NOT NULL UNIQUE,
+
+    description TEXT
+
+);
+
+
+
+
+
+CREATE TABLE public.user_roles (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+
+    role_id UUID NOT NULL REFERENCES public.roles(id),
+
+    store_id UUID,
+
+    assigned_by UUID REFERENCES public.profiles(id),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.role_permissions (
+
+    role_id UUID NOT NULL REFERENCES public.roles(id) ON DELETE CASCADE,
+
+    permission_id UUID NOT NULL REFERENCES public.permissions(id) ON DELETE CASCADE,
+
+    PRIMARY KEY (role_id, permission_id)
+
+);
+
+
+
+
+
+CREATE INDEX idx_user_roles_user
+
+ON public.user_roles(user_id);
+
+
+
+
+
+৩. Migration 002 — Stores & Catalog
+
+ফাইল: 002_stores_catalog.sql
+
+CREATE TABLE public.stores (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    name VARCHAR(150) NOT NULL,
+
+    slug VARCHAR(150) NOT NULL UNIQUE,
+
+    description TEXT,
+
+    logo_url TEXT,
+
+    primary_color VARCHAR(20),
+
+    status VARCHAR(20) NOT NULL DEFAULT 'active'
+
+        CHECK (status IN ('active', 'inactive')),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+ALTER TABLE public.user_roles
+
+ADD CONSTRAINT fk_user_roles_store
+
+FOREIGN KEY (store_id)
+
+REFERENCES public.stores(id);
+
+
+
+
+
+CREATE TABLE public.store_policies (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_id UUID NOT NULL REFERENCES public.stores(id),
+
+    policy_type VARCHAR(50) NOT NULL,
+
+    policy_content JSONB NOT NULL DEFAULT '{}'::JSONB,
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (store_id, policy_type)
+
+);
+
+
+
+
+
+CREATE TABLE public.categories (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_id UUID NOT NULL REFERENCES public.stores(id),
+
+    parent_id UUID REFERENCES public.categories(id),
+
+    name VARCHAR(150) NOT NULL,
+
+    slug VARCHAR(150) NOT NULL,
+
+    description TEXT,
+
+    image_url TEXT,
+
+    sort_order INTEGER NOT NULL DEFAULT 0,
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (store_id, slug)
+
+);
+
+
+
+
+
+CREATE TABLE public.products (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_id UUID NOT NULL REFERENCES public.stores(id),
+
+    category_id UUID REFERENCES public.categories(id),
+
+    name VARCHAR(255) NOT NULL,
+
+    slug VARCHAR(255) NOT NULL,
+
+    description TEXT,
+
+    brand VARCHAR(150),
+
+    product_type VARCHAR(50),
+
+    status VARCHAR(30) NOT NULL DEFAULT 'draft'
+
+        CHECK (status IN ('draft', 'active', 'archived')),
+
+    is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (store_id, slug)
+
+);
+
+
+
+
+
+CREATE TABLE public.product_variants (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    product_id UUID NOT NULL REFERENCES public.products(id),
+
+    sku VARCHAR(100) NOT NULL UNIQUE,
+
+    variant_name VARCHAR(150),
+
+    attributes JSONB NOT NULL DEFAULT '{}'::JSONB,
+
+    barcode VARCHAR(100),
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.product_images (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    product_id UUID NOT NULL REFERENCES public.products(id),
+
+    image_url TEXT NOT NULL,
+
+    alt_text VARCHAR(255),
+
+    sort_order INTEGER NOT NULL DEFAULT 0,
+
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE
+
+);
+
+
+
+
+
+CREATE TABLE public.product_attributes (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    product_id UUID NOT NULL REFERENCES public.products(id),
+
+    attribute_name VARCHAR(100) NOT NULL,
+
+    attribute_value TEXT NOT NULL
+
+);
+
+
+
+
+
+CREATE TABLE public.product_prices (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    variant_id UUID NOT NULL REFERENCES public.product_variants(id),
+
+    currency_code CHAR(3) NOT NULL DEFAULT 'BDT',
+
+    selling_price NUMERIC(12,2) NOT NULL
+
+        CHECK (selling_price >= 0),
+
+    compare_at_price NUMERIC(12,2)
+
+        CHECK (compare_at_price IS NULL OR compare_at_price >= 0),
+
+    effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    effective_until TIMESTAMPTZ,
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CHECK (
+
+        effective_until IS NULL
+
+        OR effective_until > effective_from
+
+    )
+
+);
+
+
+
+
+
+CREATE UNIQUE INDEX one_active_price_per_variant
+
+ON public.product_prices(variant_id)
+
+WHERE is_active = TRUE;
+
+
+
+
+
+CREATE TABLE public.promotions (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    name VARCHAR(150) NOT NULL,
+
+    discount_type VARCHAR(30) NOT NULL
+
+        CHECK (discount_type IN ('percentage', 'fixed')),
+
+    discount_value NUMERIC(12,2) NOT NULL
+
+        CHECK (discount_value > 0),
+
+    start_at TIMESTAMPTZ NOT NULL,
+
+    end_at TIMESTAMPTZ NOT NULL,
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    CHECK (end_at > start_at)
+
+);
+
+
+
+
+
+৪. Migration 003 — Inventory
+
+ফাইল: 003_inventory.sql
+
+CREATE TABLE public.warehouses (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_id UUID NOT NULL REFERENCES public.stores(id),
+
+    name VARCHAR(150) NOT NULL,
+
+    location TEXT,
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.inventory_balances (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    warehouse_id UUID NOT NULL REFERENCES public.warehouses(id),
+
+    variant_id UUID NOT NULL REFERENCES public.product_variants(id),
+
+    quantity_on_hand INTEGER NOT NULL DEFAULT 0,
+
+    quantity_reserved INTEGER NOT NULL DEFAULT 0,
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+
+
+
+
+    CHECK (quantity_on_hand >= 0),
+
+    CHECK (quantity_reserved >= 0),
+
+    CHECK (quantity_reserved <= quantity_on_hand),
+
+
+
+
+
+    UNIQUE (warehouse_id, variant_id)
+
+);
+
+
+
+
+
+CREATE TABLE public.stock_movements (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    warehouse_id UUID NOT NULL REFERENCES public.warehouses(id),
+
+    variant_id UUID NOT NULL REFERENCES public.product_variants(id),
+
+    movement_type VARCHAR(40) NOT NULL,
+
+    quantity_delta INTEGER NOT NULL,
+
+    reference_type VARCHAR(50),
+
+    reference_id UUID,
+
+    note TEXT,
+
+    created_by UUID REFERENCES public.profiles(id),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.inventory_reservations (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    variant_id UUID NOT NULL REFERENCES public.product_variants(id),
+
+    warehouse_id UUID NOT NULL REFERENCES public.warehouses(id),
+
+    order_id UUID,
+
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+
+    status VARCHAR(30) NOT NULL DEFAULT 'active'
+
+        CHECK (status IN (
+
+            'active', 'consumed', 'released', 'expired'
+
+        )),
+
+    expires_at TIMESTAMPTZ NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.product_batches (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    variant_id UUID NOT NULL REFERENCES public.product_variants(id),
+
+    batch_number VARCHAR(100) NOT NULL,
+
+    manufacture_date DATE,
+
+    expiry_date DATE NOT NULL,
+
+    quantity_received INTEGER NOT NULL
+
+        CHECK (quantity_received >= 0),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (variant_id, batch_number)
+
+);
+
+
+
+
+
+CREATE TABLE public.product_serials (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    variant_id UUID NOT NULL REFERENCES public.product_variants(id),
+
+    serial_number VARCHAR(150) NOT NULL UNIQUE,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'available'
+
+        CHECK (status IN (
+
+            'available', 'reserved', 'sold', 'returned', 'damaged'
+
+        )),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+৫. Migration 004 — Cart & Orders
+
+ফাইল: 004_cart_orders.sql
+
+CREATE TABLE public.carts (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID REFERENCES public.profiles(id),
+
+    session_id VARCHAR(150),
+
+    status VARCHAR(30) NOT NULL DEFAULT 'active'
+
+        CHECK (status IN ('active', 'converted', 'abandoned')),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+
+
+
+
+    CHECK (user_id IS NOT NULL OR session_id IS NOT NULL)
+
+);
+
+
+
+
+
+CREATE TABLE public.cart_items (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    cart_id UUID NOT NULL REFERENCES public.carts(id) ON DELETE CASCADE,
+
+    variant_id UUID NOT NULL REFERENCES public.product_variants(id),
+
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (cart_id, variant_id)
+
+);
+
+
+
+
+
+CREATE TABLE public.orders (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_number VARCHAR(50) NOT NULL UNIQUE,
+
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+
+    subtotal NUMERIC(12,2) NOT NULL CHECK (subtotal >= 0),
+
+    discount_total NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    delivery_total NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    grand_total NUMERIC(12,2) NOT NULL CHECK (grand_total >= 0),
+
+    currency_code CHAR(3) NOT NULL DEFAULT 'BDT',
+
+    order_status VARCHAR(30) NOT NULL DEFAULT 'pending'
+
+        CHECK (order_status IN (
+
+            'pending', 'confirmed', 'processing',
+
+            'completed', 'cancelled'
+
+        )),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.store_orders (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL REFERENCES public.orders(id),
+
+    store_id UUID NOT NULL REFERENCES public.stores(id),
+
+    store_order_number VARCHAR(50) NOT NULL UNIQUE,
+
+    subtotal NUMERIC(12,2) NOT NULL CHECK (subtotal >= 0),
+
+    delivery_fee NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (order_id, store_id)
+
+);
+
+
+
+
+
+CREATE TABLE public.order_items (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_order_id UUID NOT NULL REFERENCES public.store_orders(id),
+
+    variant_id UUID REFERENCES public.product_variants(id),
+
+    product_name_snapshot VARCHAR(255) NOT NULL,
+
+    sku_snapshot VARCHAR(100),
+
+    variant_snapshot JSONB NOT NULL DEFAULT '{}'::JSONB,
+
+    unit_price NUMERIC(12,2) NOT NULL CHECK (unit_price >= 0),
+
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+
+    discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    line_total NUMERIC(12,2) NOT NULL CHECK (line_total >= 0),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.order_addresses (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL REFERENCES public.orders(id),
+
+    recipient_name VARCHAR(150) NOT NULL,
+
+    phone VARCHAR(20) NOT NULL,
+
+    division VARCHAR(100) NOT NULL,
+
+    district VARCHAR(100) NOT NULL,
+
+    upazila VARCHAR(100),
+
+    area VARCHAR(150),
+
+    address_line TEXT NOT NULL,
+
+    postal_code VARCHAR(20),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (order_id)
+
+);
+
+
+
+
+
+CREATE TABLE public.order_status_history (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL REFERENCES public.orders(id),
+
+    old_status VARCHAR(30),
+
+    new_status VARCHAR(30) NOT NULL,
+
+    changed_by UUID REFERENCES public.profiles(id),
+
+    note TEXT,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+ALTER TABLE public.inventory_reservations
+
+ADD CONSTRAINT fk_reservation_order
+
+FOREIGN KEY (order_id)
+
+REFERENCES public.orders(id);
+
+
+
+
+
+৬. Migration 005 — Payments & Fulfillment
+
+ফাইল: 005_payments_fulfillment.sql
+
+CREATE TABLE public.payments (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL REFERENCES public.orders(id),
+
+    provider VARCHAR(50) NOT NULL,
+
+    provider_reference VARCHAR(150),
+
+    payment_method VARCHAR(40) NOT NULL,
+
+    amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+
+    currency_code CHAR(3) NOT NULL DEFAULT 'BDT',
+
+    status VARCHAR(30) NOT NULL DEFAULT 'pending'
+
+        CHECK (status IN (
+
+            'pending', 'authorized', 'paid',
+
+            'failed', 'partially_refunded', 'refunded'
+
+        )),
+
+    paid_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.payment_transactions (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    payment_id UUID NOT NULL REFERENCES public.payments(id),
+
+    provider_transaction_id VARCHAR(150),
+
+    transaction_type VARCHAR(30) NOT NULL,
+
+    amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+
+    status VARCHAR(30) NOT NULL,
+
+    response_data JSONB,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.payment_webhook_events (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    provider VARCHAR(50) NOT NULL,
+
+    provider_event_id VARCHAR(200) NOT NULL,
+
+    event_type VARCHAR(100) NOT NULL,
+
+    payload JSONB NOT NULL,
+
+    processing_status VARCHAR(30) NOT NULL DEFAULT 'received',
+
+    processed_at TIMESTAMPTZ,
+
+    received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (provider, provider_event_id)
+
+);
+
+
+
+
+
+CREATE TABLE public.refunds (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    payment_id UUID NOT NULL REFERENCES public.payments(id),
+
+    amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+
+    reason TEXT,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+
+    provider_reference VARCHAR(150),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.expenses (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_id UUID REFERENCES public.stores(id),
+
+    category VARCHAR(80) NOT NULL,
+
+    amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+
+    currency_code CHAR(3) NOT NULL DEFAULT 'BDT',
+
+    description TEXT,
+
+    expense_date DATE NOT NULL,
+
+    created_by UUID REFERENCES public.profiles(id),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.couriers (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    name VARCHAR(150) NOT NULL,
+
+    code VARCHAR(80) NOT NULL UNIQUE,
+
+    api_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
+
+);
+
+
+
+
+
+CREATE TABLE public.shipments (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_order_id UUID NOT NULL REFERENCES public.store_orders(id),
+
+    courier_id UUID REFERENCES public.couriers(id),
+
+    tracking_number VARCHAR(150),
+
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+
+    delivery_fee NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    booked_at TIMESTAMPTZ,
+
+    delivered_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.shipment_events (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    shipment_id UUID NOT NULL REFERENCES public.shipments(id),
+
+    status VARCHAR(30) NOT NULL,
+
+    description TEXT,
+
+    event_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    raw_data JSONB
+
+);
+
+
+
+
+
+৭. Migration 006 — Returns & Support
+
+ফাইল: 006_returns_support.sql
+
+CREATE TABLE public.return_requests (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL REFERENCES public.orders(id),
+
+    store_order_id UUID NOT NULL REFERENCES public.store_orders(id),
+
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+
+    reason TEXT NOT NULL,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'requested',
+
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    resolved_at TIMESTAMPTZ
+
+);
+
+
+
+
+
+CREATE TABLE public.return_items (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    return_request_id UUID NOT NULL
+
+        REFERENCES public.return_requests(id),
+
+    order_item_id UUID NOT NULL REFERENCES public.order_items(id),
+
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+
+    condition VARCHAR(50),
+
+    resolution VARCHAR(50)
+
+);
+
+
+
+
+
+CREATE TABLE public.support_tickets (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+
+    order_id UUID REFERENCES public.orders(id),
+
+    subject VARCHAR(255) NOT NULL,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'open',
+
+    priority VARCHAR(30) NOT NULL DEFAULT 'normal',
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.support_messages (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ticket_id UUID NOT NULL
+
+        REFERENCES public.support_tickets(id),
+
+    sender_id UUID NOT NULL REFERENCES public.profiles(id),
+
+    message TEXT NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+৮. Migration 007 — Operations
+
+ফাইল: 007_operations.sql
+
+CREATE TABLE public.audit_logs (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    actor_id UUID REFERENCES public.profiles(id),
+
+    action VARCHAR(100) NOT NULL,
+
+    entity_type VARCHAR(100) NOT NULL,
+
+    entity_id UUID,
+
+    changes JSONB,
+
+    ip_address INET,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.outbox_events (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    event_type VARCHAR(150) NOT NULL,
+
+    aggregate_type VARCHAR(100) NOT NULL,
+
+    aggregate_id UUID NOT NULL,
+
+    payload JSONB NOT NULL,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+
+    attempts INTEGER NOT NULL DEFAULT 0,
+
+    available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    processed_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.notifications (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+
+    notification_type VARCHAR(80) NOT NULL,
+
+    title VARCHAR(255) NOT NULL,
+
+    message TEXT NOT NULL,
+
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+
+
+
+
+CREATE TABLE public.notification_templates (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    template_key VARCHAR(100) NOT NULL,
+
+    channel VARCHAR(30) NOT NULL,
+
+    language VARCHAR(10) NOT NULL DEFAULT 'bn',
+
+    subject VARCHAR(255),
+
+    body TEXT NOT NULL,
+
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    UNIQUE (template_key, channel, language)
+
+);
+
+
+
+
+
+CREATE TABLE public.idempotency_keys (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    key VARCHAR(200) NOT NULL,
+
+    user_id UUID REFERENCES public.profiles(id),
+
+    endpoint VARCHAR(200) NOT NULL,
+
+    request_hash VARCHAR(128) NOT NULL,
+
+    response_data JSONB,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'processing',
+
+    expires_at TIMESTAMPTZ NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (key, endpoint)
+
+);
+
+
+
+
+
+CREATE TABLE public.daily_reports (
+
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    store_id UUID NOT NULL REFERENCES public.stores(id),
+
+    report_date DATE NOT NULL,
+
+    total_orders INTEGER NOT NULL DEFAULT 0,
+
+    total_sales NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    total_refunds NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    total_expenses NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE (store_id, report_date)
+
+);
+
+
+
+
+
+৯. Migration 008 — Indexes & Triggers
+
+ফাইল: 008_indexes.sql
+
+CREATE INDEX idx_addresses_user
+
+ON public.addresses(user_id);
+
+
+
+
+
+CREATE INDEX idx_categories_store
+
+ON public.categories(store_id, is_active);
+
+
+
+
+
+CREATE INDEX idx_products_store_status
+
+ON public.products(store_id, status);
+
+
+
+
+
+CREATE INDEX idx_products_category
+
+ON public.products(category_id);
+
+
+
+
+
+CREATE INDEX idx_variants_product
+
+ON public.product_variants(product_id);
+
+
+
+
+
+CREATE INDEX idx_inventory_movements_variant
+
+ON public.stock_movements(variant_id, created_at DESC);
+
+
+
+
+
+CREATE INDEX idx_inventory_reservations_expiry
+
+ON public.inventory_reservations(status, expires_at);
+
+
+
+
+
+CREATE INDEX idx_carts_user
+
+ON public.carts(user_id);
+
+
+
+
+
+CREATE INDEX idx_orders_user_date
+
+ON public.orders(user_id, created_at DESC);
+
+
+
+
+
+CREATE INDEX idx_store_orders_store_status
+
+ON public.store_orders(store_id, status);
+
+
+
+
+
+CREATE INDEX idx_order_items_store_order
+
+ON public.order_items(store_order_id);
+
+
+
+
+
+CREATE INDEX idx_payments_order
+
+ON public.payments(order_id);
+
+
+
+
+
+CREATE INDEX idx_shipments_tracking
+
+ON public.shipments(tracking_number);
+
+
+
+
+
+CREATE INDEX idx_support_tickets_user
+
+ON public.support_tickets(user_id, status);
+
+
+
+
+
+CREATE INDEX idx_outbox_pending
+
+ON public.outbox_events(available_at)
+
+WHERE status = 'pending';
+
+
+
+
+
+CREATE TRIGGER profiles_updated_at
+
+BEFORE UPDATE ON public.profiles
+
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+
+
+
+CREATE TRIGGER stores_updated_at
+
+BEFORE UPDATE ON public.stores
+
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+
+
+
+CREATE TRIGGER products_updated_at
+
+BEFORE UPDATE ON public.products
+
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+
+
+
+CREATE TRIGGER carts_updated_at
+
+BEFORE UPDATE ON public.carts
+
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+
+
+
+CREATE TRIGGER cart_items_updated_at
+
+BEFORE UPDATE ON public.cart_items
+
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+
+
+
+CREATE TRIGGER orders_updated_at
+
+BEFORE UPDATE ON public.orders
+
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+
+
+
+CREATE TRIGGER support_tickets_updated_at
+
+BEFORE UPDATE ON public.support_tickets
+
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+
+
+
+১০. Migration 009 — Initial RLS Policies
+
+ফাইল: 009_rls_policies.sql
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.addresses ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.carts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.order_addresses ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
+
+
+
+
+
+CREATE POLICY "Users can read own profile"
+
+ON public.profiles
+
+FOR SELECT
+
+TO authenticated
+
+USING (id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can update own profile"
+
+ON public.profiles
+
+FOR UPDATE
+
+TO authenticated
+
+USING (id = (SELECT auth.uid()))
+
+WITH CHECK (id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can manage own addresses"
+
+ON public.addresses
+
+FOR ALL
+
+TO authenticated
+
+USING (user_id = (SELECT auth.uid()))
+
+WITH CHECK (user_id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can read own carts"
+
+ON public.carts
+
+FOR SELECT
+
+TO authenticated
+
+USING (user_id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can manage own cart items"
+
+ON public.cart_items
+
+FOR ALL
+
+TO authenticated
+
+USING (
+
+    EXISTS (
+
+        SELECT 1
+
+        FROM public.carts c
+
+        WHERE c.id = cart_items.cart_id
+
+          AND c.user_id = (SELECT auth.uid())
+
+    )
+
+)
+
+WITH CHECK (
+
+    EXISTS (
+
+        SELECT 1
+
+        FROM public.carts c
+
+        WHERE c.id = cart_items.cart_id
+
+          AND c.user_id = (SELECT auth.uid())
+
+    )
+
+);
+
+
+
+
+
+CREATE POLICY "Users can read own orders"
+
+ON public.orders
+
+FOR SELECT
+
+TO authenticated
+
+USING (user_id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can read own order addresses"
+
+ON public.order_addresses
+
+FOR SELECT
+
+TO authenticated
+
+USING (
+
+    EXISTS (
+
+        SELECT 1
+
+        FROM public.orders o
+
+        WHERE o.id = order_addresses.order_id
+
+          AND o.user_id = (SELECT auth.uid())
+
+    )
+
+);
+
+
+
+
+
+CREATE POLICY "Users can read own notifications"
+
+ON public.notifications
+
+FOR SELECT
+
+TO authenticated
+
+USING (user_id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can update own notifications"
+
+ON public.notifications
+
+FOR UPDATE
+
+TO authenticated
+
+USING (user_id = (SELECT auth.uid()))
+
+WITH CHECK (user_id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can read own support tickets"
+
+ON public.support_tickets
+
+FOR SELECT
+
+TO authenticated
+
+USING (user_id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can create own support tickets"
+
+ON public.support_tickets
+
+FOR INSERT
+
+TO authenticated
+
+WITH CHECK (user_id = (SELECT auth.uid()));
+
+
+
+
+
+CREATE POLICY "Users can read messages in own tickets"
+
+ON public.support_messages
+
+FOR SELECT
+
+TO authenticated
+
+USING (
+
+    EXISTS (
+
+        SELECT 1
+
+        FROM public.support_tickets t
+
+        WHERE t.id = support_messages.ticket_id
+
+          AND t.user_id = (SELECT auth.uid())
+
+    )
+
+);
+
+
+
+
+
+নিরাপত্তা সংক্রান্ত নোট:
+
+এই Migration হলো প্রাথমিক Customer RLS Policy। Admin ও Store Staff-এর জন্য Store-scoped Authorization Policy আলাদাভাবে তৈরি ও পরীক্ষা করতে হবে।
+
+Backend যদি Supabase Service Role Key ব্যবহার করে Database Access করে, সেই Key RLS bypass করতে পারে। তাই FastAPI-তে প্রতিটি Request-এর Permission যাচাই বাধ্যতামূলক। Service Role Key কখনো Frontend-এ যাবে না।
+
+Guest Cart এবং Staff Permission-এর জন্য আলাদা Policy ও Server-side Validation প্রয়োজন।
+
+১১. Migration 010 — Seed Data
+
+ফাইল: 010_seed_data.sql
+
+INSERT INTO public.roles (name, description)
+
+VALUES
+
+('owner', 'Platform owner'),
+
+('admin', 'Platform administrator'),
+
+('store_manager', 'Store management'),
+
+('inventory_manager', 'Inventory management'),
+
+('order_manager', 'Order management'),
+
+('support_agent', 'Customer support'),
+
+('customer', 'Customer account')
+
+ON CONFLICT (name) DO NOTHING;
+
+
+
+
+
+INSERT INTO public.stores (name, slug, description)
+
+VALUES
+
+(
+
+    'Best Gadget',
+
+    'best-gadget',
+
+    'Gadgets and electronics store'
+
+),
+
+(
+
+    'Aura Skin Care',
+
+    'aura-skin-care',
+
+    'Skincare and beauty store'
+
+)
+
+ON CONFLICT (slug) DO NOTHING;
+
+
+
+
+
+Owner User তৈরি হলে তার User ID ব্যবহার করে আলাদাভাবে user_roles-এ Owner Role Assign করতে হবে। Seed Script-এ কোনো কাল্পনিক Auth User ID ব্যবহার করা যাবে না।
+
+১২. Migration Execution
+
+Supabase CLI ব্যবহার করে:
+
+supabase init
+
+
+
+
+
+supabase start
+
+
+
+
+
+supabase migration up
+
+
+
+
+
+Remote Project-এর জন্য:
+
+supabase link --project-ref YOUR_PROJECT_REF
+
+
+
+
+
+supabase db push
+
+
+
+
+
+Production-এ Migration প্রয়োগের আগে Staging-এ পরীক্ষা করতে হবে এবং Backup ও Rollback Plan নিশ্চিত করতে হবে।
+
+১৩. Migration Testing Checklist
+
+* [ ] সব Migration সফলভাবে প্রয়োগ হয়েছে।
+
+* [ ] সব Table তৈরি হয়েছে।
+
+* [ ] Primary Key ও Foreign Key সঠিক।
+
+* [ ] Unique Constraint কাজ করছে।
+
+* [ ] Negative Stock প্রতিরোধ হচ্ছে।
+
+* [ ] একই SKU Duplicate হচ্ছে না।
+
+* [ ] একই Webhook দ্বিতীয়বার Processing হচ্ছে না।
+
+* [ ] Customer অন্য Customer-এর Order দেখতে পারছে না।
+
+* [ ] Customer অন্য Customer-এর Address পরিবর্তন করতে পারছে না।
+
+* [ ] Store-level Permission পরীক্ষা হয়েছে।
+
+* [ ] Production Secret নিরাপদ আছে।
+
+* [ ] Backup ও Restore পরীক্ষা হয়েছে।
+
+১৪. Production-এ যাওয়ার আগে আবশ্যক উন্নয়ন
+
+এই Blueprint দিয়ে Core Schema তৈরি করা সম্ভব। তবে Production Checkout চালু করার আগে নিচের বিষয়গুলো সম্পূর্ণ করতে হবে:
+
+1. Atomic Stock Reservation ও Release SQL Function।
+
+2. Checkout Transaction Function।
+
+3. Order Number Generation।
+
+4. Payment Webhook Idempotency ও Signature Verification।
+
+5. Refund Amount Concurrency Control।
+
+6. Store-scoped Staff Authorization।
+
+7. Guest Cart-এর নিরাপদ Session Validation।
+
+8. Inventory ও Financial Reconciliation।
+
+9. Complete RLS Policy Test।
+
+10. Backup ও Recovery Test।
+
+১৫. চূড়ান্ত ঘোষণা
+
+এই SQL Migration Blueprint Aura Bell-এর Database Implementation-এর ভিত্তি।
+
+এটি সরাসরি Production-এ চালানোর জন্য সম্পূর্ণ প্রস্তুত বলে গণ্য করা যাবে না। প্রথমে Development এবং Staging Environment-এ Migration, RLS, Checkout, Stock ও Payment Workflow পরীক্ষা করতে হবে।
+
+Document Code: AB-SQL-001
+
+Version: 1.0
+
+Project: Aura Bell
+```
