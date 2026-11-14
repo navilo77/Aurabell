@@ -1996,4 +1996,171 @@ Document Code: AB-SQL-001
 Version: 1.0
 
 Project: Aura Bell
+
+
+---
+
+## Gap Fix 1 — financial_entries Table (DDL)
+
+**File:** `005_payments_fulfillment.sql` (append to existing migration)
+
+```sql
+CREATE TABLE public.financial_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entry_type VARCHAR(40) NOT NULL
+        CHECK (entry_type IN (
+            'sale', 'refund', 'payment', 'payout', 'expense', 'adjustment',
+            'courier_fee', 'platform_fee', 'tax_collected', 'tax_remitted'
+        )),
+    direction VARCHAR(10) NOT NULL
+        CHECK (direction IN ('credit', 'debit')),
+    reference_type VARCHAR(50) NOT NULL
+        CHECK (reference_type IN (
+            'order', 'store_order', 'payment', 'refund', 'expense',
+            'shipment', 'return', 'adjustment', 'payout'
+        )),
+    reference_id UUID NOT NULL,
+    store_id UUID REFERENCES public.stores(id) ON DELETE SET NULL,
+    amount NUMERIC(14,2) NOT NULL CHECK (amount >= 0),
+    currency CHAR(3) NOT NULL DEFAULT 'BDT',
+    status VARCHAR(20) NOT NULL DEFAULT 'posted'
+        CHECK (status IN ('posted', 'voided', 'pending_reconciliation')),
+    reconciled_at TIMESTAMPTZ,
+    notes TEXT,
+    created_by UUID REFERENCES public.profiles(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_financial_entries_reference
+ON public.financial_entries(reference_type, reference_id);
+
+CREATE INDEX idx_financial_entries_store_status
+ON public.financial_entries(store_id, status);
+
+CREATE INDEX idx_financial_entries_created_at
+ON public.financial_entries(created_at DESC);
+
+CREATE TRIGGER financial_entries_updated_at
+BEFORE UPDATE ON public.financial_entries
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+```
+
+---
+
+## Gap Fix 2 — inventory_reservations.store_order_id (Split: 003 + 004)
+
+### Part A — Add column (no FK yet) — File: `003_inventory.sql`
+
+```sql
+-- Add store_order_id column (FK added in Migration 004 after store_orders exists)
+ALTER TABLE public.inventory_reservations
+ADD COLUMN store_order_id UUID;
+
+-- Partial index for active reservations by store_order
+CREATE INDEX idx_inventory_reservations_store_order_active
+ON public.inventory_reservations(store_order_id)
+WHERE status = 'active';
+
+-- Mark order_id as deprecated (use store_order_id instead)
+COMMENT ON COLUMN public.inventory_reservations.order_id IS 'DEPRECATED: Use store_order_id instead. Kept for backward compatibility during migration.';
+```
+
+### Part B — Add FK constraint — File: `004_cart_orders.sql` (after existing fk_reservation_order block)
+
+```sql
+-- Add FK to store_orders (store_orders table now exists)
+ALTER TABLE public.inventory_reservations
+ADD CONSTRAINT fk_reservation_store_order
+FOREIGN KEY (store_order_id)
+REFERENCES public.store_orders(id)
+ON DELETE CASCADE;
+```
+
+---
+
+## Gap Fix 3 — order_addresses Billing/Delivery Separation
+
+**File:** `004_cart_orders.sql` (modify existing `order_addresses` table)
+
+```sql
+-- Drop the single UNIQUE constraint on order_id
+ALTER TABLE public.order_addresses DROP CONSTRAINT order_addresses_order_id_key;
+
+-- Add address_type column
+ALTER TABLE public.order_addresses
+ADD COLUMN address_type VARCHAR(15) NOT NULL DEFAULT 'delivery'
+    CHECK (address_type IN ('billing', 'delivery', 'both'));
+
+-- Add composite unique index for one address per type per order
+CREATE UNIQUE INDEX uq_order_addresses_order_type
+ON public.order_addresses(order_id, address_type);
+```
+
+---
+
+## Gap Fix 4A — Promotion Mapping Tables (Part 1: promotion_products, promotion_stores)
+
+**File:** `002_stores_catalog.sql` (append after `promotions` table)
+
+```sql
+-- Promotion <-> Product many-to-many
+CREATE TABLE public.promotion_products (
+    promotion_id UUID NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    PRIMARY KEY (promotion_id, product_id)
+);
+
+-- Promotion <-> Store many-to-many
+CREATE TABLE public.promotion_stores (
+    promotion_id UUID NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+    store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+    PRIMARY KEY (promotion_id, store_id)
+);
+```
+
+---
+
+## Gap Fix 4B — Promotion Redemptions Table (Part 2: promotion_redemptions)
+
+**File:** `004_cart_orders.sql` (append after `order_status_history` table)
+
+```sql
+-- Promotion redemptions tracking
+CREATE TABLE public.promotion_redemptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    promotion_id UUID NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id),
+    order_id UUID NOT NULL REFERENCES public.orders(id),
+    discount_amount NUMERIC(12,2) NOT NULL CHECK (discount_amount >= 0),
+    redeemed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (promotion_id, order_id)
+);
+
+CREATE INDEX idx_promotion_redemptions_user_promo
+ON public.promotion_redemptions(user_id, promotion_id);
+```
+
+---
+
+## Gap Fix 5 — stock_movements Immutability Trigger
+
+**File:** `008_indexes.sql` (append to migration)
+
+```sql
+-- Function to prevent UPDATE/DELETE on stock_movements
+CREATE OR REPLACE FUNCTION public.prevent_stock_movement_mutation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE EXCEPTION 'stock_movements is an immutable ledger. UPDATE and DELETE operations are not allowed.';
+END;
+$$;
+
+-- Trigger to enforce immutability
+CREATE TRIGGER prevent_stock_movement_mutation
+BEFORE UPDATE OR DELETE ON public.stock_movements
+FOR EACH ROW EXECUTE FUNCTION public.prevent_stock_movement_mutation();
+```
 ```

@@ -15,7 +15,7 @@
 প্রতিটি মাইলস্টোনের লক্ষ্য হলো:
 
 1. **ভিত্তি শক্ত করা**: অবকাঠামো ও ডাটাবেজ দিয়ে শুরু করে ধাপে ধাপে কমার্স লজিক এবং ইউজার ইন্টারফেসে যাওয়া।
-2. **জিরো কনফ্লিক্ট**: ব্লুপ্রিন্টের অনুমোদিত সিদ্ধান্ত (FastAPI, Supabase, ৪৩টি টেবিল, ১৫ মিনিট TTL, ফ্ল্যাট শিপিং, bKash+SSLCommerz) হুবহু বাস্তবায়ন করা।
+2. **জিরো কনফ্লিক্ট**: ব্লুপ্রিন্টের অনুমোদিত সিদ্ধান্ত (FastAPI, Supabase, ৫০টি টেবিল, ১৫ মিনিট TTL, ফ্ল্যাট শিপিং, bKash+SSLCommerz) হুবহু বাস্তবায়ন করা।
 3. **পরিমাপযোগ্য ডেলিভারি**: প্রতিটি সাব-মাইলস্টোনের সুনির্দিষ্ট কোডিং ডেলিভারেবল এবং টেস্টেবল একসেপ্টেন্স ক্রাইটেরিয়া নিশ্চিত করা।
 
 ```mermaid
@@ -38,21 +38,21 @@ flowchart LR
 
 ## MILESTONE 1 (M1): Infrastructure, Database & Foundation Scaffolding
 >
-> **লক্ষ্য:** ব্যাকএন্ড মনোলিথ রিপোজিটরি সেটআপ, সুপাবেজ ডাটাবেজের ৪৩টি টেবিলের ডিডিএল মাইগ্রেশন এবং নিরাপদ গো-ট্রু অথেনটিকেশন লেয়ার প্রতিষ্ঠা।
+> **লক্ষ্য:** ব্যাকএন্ড মনোলিথ রিপোজিটরি সেটআপ, সুপাবেজ ডাটাবেজের ৫০টি টেবিলের ডিডিএল মাইগ্রেশন এবং নিরাপদ গো-ট্রু অথেনটিকেশন লেয়ার প্রতিষ্ঠা।
 
 ### সাব-মাইলস্টোনসমূহ
 
-* **M1.1: Backend Repository & Config Scaffolding**
-  * পাইথন ৩.১১+ সহ FastAPI প্রজেক্ট স্ট্রাকচার তৈরি (`app/core/`, `app/modules/`, `app/workers/`)।
-  * Pydantic v2 `BaseSettings` ভিত্তিক এনভায়রনমেন্ট কনফিগারেশন লোডার (`.env` সাপোর্ট)।
-  * SQLAlchemy 2.0 AsyncEngine ও ডাটাবেজ সেশন ম্যানেজার সেটআপ।
-  * ডকার কনটেইনারাইজেশন (`Dockerfile`, `docker-compose.yml`) ও হেলথচেক এন্ডপয়েন্ট (`/api/v1/health`)।
+* **M1.1: Backend Repository & Config Scaffolding** `[x] [Status: COMPLETED]`
+  * *ব্যাকএন্ড সিস্টেম:* FastAPI প্রজেক্ট স্ট্রাকচার (`app/core/`, `app/modules/`, `app/workers/`)।
+  * *কনফিগারেশন:* Pydantic v2 `BaseSettings`, `.env` সাপোর্ট ও অ্যপ্লিকেশন কনফিগ।
+  * *ডাটাবেজ:* SQLAlchemy 2.0 AsyncEngine + সেশন ম্যানেজার মডিউল।
+  * *কন্টেইনারাইজেশন:* `Dockerfile`, `docker-compose.yml` ও হেলথচেক এন্ডপয়েন্ট (`/api/v1/health`).
 
-* **M1.2: Supabase PostgreSQL DDL Migration Execution**
-  * পোস্টগ্রেস এক্সটেনশন এনেবল (`uuid-ossp`, `pgcrypto`)।
-  * গ্লোবাল টাইমস্ট্যাম্প ট্রিগার ফাংশন (`set_updated_at()`) প্রয়োগ।
-  * ৪৩টি রিলেশনাল টেবিল, পোস্টগ্রেস এনামস, চেক কনস্ট্রেইন্টস এবং ফরেন কি ক্যাস্কেড স্ক্রিপ্ট এক্সিকিউট করা।
-  * Row Level Security (RLS) পলিসি ইনিশিয়ালাইজেশন।
+* **M1.2: Supabase PostgreSQL DDL Migration Execution** `[x] [Status: COMPLETED]`
+  * *এক্সটেনশন:* `uuid-ossp`, `pgcrypto`, `pgcrypto` এনেবল করা।
+  * *গ্লোবাল ট্রিগার:* `set_updated_at()` ফাংশন ও ট্রিগার ইম্প্লিমেন্ট করা।
+  * *টেবিলস:* 50 রিলেশনাল টেবিল + এনামস + চেক কনস্ট্রেইন্ট + ফরেন কি ক্যাস্কেড স্ক্রিপ্ট।
+  * *আরএলএস:* 12টি বিধান সহ Row Level Security পলিসি ইনিশিয়ালাইজেশন।
 
 * **M1.3: Core Identity & Auth Integration**
   * Supabase Auth (GoTrue) পিকেসিই ফ্লো ও ওটিপি/ইমেইল লগইন মিডলওয়্যার তৈরি।
@@ -210,7 +210,7 @@ flowchart LR
 
 | মাইলস্টোন আইডি | শিরোনাম | নির্ভরশীলতা | মোট সাব-মাইলস্টোন | সমাপ্ত | অগ্রগতি | বর্তমান স্থিতি |
 | --- | --- | --- | :---: | :---: | :---: | :---: |
-| **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ০ | ০% | ⏳ Ready to Start |
+| **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ২ | ৫০% | 🔄 IN PROGRESS |
 | **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 3** | **Concurrency-Safe Inventory & Ledger** | Milestone 2 | ৫টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ০ | ০% | 📋 Planned |
@@ -235,13 +235,26 @@ flowchart LR
 
 ### 🔲 MILESTONE 1: Infrastructure, Database & Foundation Scaffolding
 
-- [ ] **M1.0: Main Milestone 1 — Infrastructure, Database & Auth Foundation** `[Status: READY TO START]`
-  * [ ] **M1.1: Backend Repository & Config Scaffolding** `[Status: PENDING]`
-    * *Scope*: FastAPI app structure, Pydantic v2 settings, SQLAlchemy 2.0 Async, Docker setup, `/api/v1/health`
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M1.2: Supabase PostgreSQL DDL Migration Execution** `[Status: PENDING]`
-    * *Scope*: 43 relational tables, enums, `set_updated_at()` trigger, check constraints, RLS policies
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+- [x] **M1.1: Backend Repository & Config Scaffolding** `[Status: COMPLETED]`
+  * *Scope*: FastAPI app structure, Pydantic v2 settings, SQLAlchemy 2.0 Async, Docker setup, `/api/v1/health`
+  * *Completion Date*: `2026-11-13` | *Verified By*: `Kilo Code + Owner`
+  * **Detailed Checklist:**
+    * [x] FastAPI Project Structure (`app/core/`, `app/modules/`, `app/workers/`)  
+    * [x] Pydantic v2 `BaseSettings` (`.env` support)
+    * [x] SQLAlchemy 2.0 AsyncEngine & Session Manager
+    * [x] Dockerization (`Dockerfile`, `docker-compose.yml`)
+    * [x] Health Check Endpoint (`/api/v1/health` returning `{"status":"ok"}`)
+  * [ ] **M1.2: Supabase PostgreSQL DDL Migration Execution** `[Status: COMPLETED]`
+    * *Scope*: 50 relational tables, enums, `set_updated_at()` trigger, check constraints, RLS policies
+    * *Completion Date*: `2026-11-13` | *Verified By*: `Kilo Code + Owner`
+    * **Detailed Checklist:**
+      * [x] Created 10 Migration SQL files (001 to 010)
+      * [x] Created 50 Relational Tables
+      * [x] Applied all 6 Gap Fixes (financial_entries, store_order_id, etc.)
+      * [x] Global `set_updated_at()` Triggers
+      * [x] Stock Immutability Trigger (`prevent_stock_movement_mutation`)
+      * [x] Initial RLS Policies (12 policies applied)
+      * [x] Base Seed Data Inserted (7 Roles, 2 Stores)
   * [ ] **M1.3: Core Identity & Auth Integration** `[Status: PENDING]`
     * *Scope*: Supabase GoTrue JWT middleware, RBAC injection (`require_role`), user profile & address book CRUD
     * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
@@ -350,4 +363,4 @@ flowchart LR
 
 ---
 
-> **সংকেতের অপেক্ষায়**: ওনার নির্দেশ দিলে অবিলম্বে **M1.1 (Backend Repository & Config Scaffolding)** বাস্তবায়ন শুরু হবে এবং কাজ শেষ হওয়ার সাথে সাথে এই চেকলিস্ট আপডেট করা হবে।
+> **সংকেতের অপেক্ষায়**: ওনার নির্দেশ দিলে অবিলম্বে **M1.3 (Core Identity & Auth Integration)** বাস্তবায়ন শুরু হবে এবং কাজ শেষ হওয়ার সাথে সাথে এই চেকলিস্ট আপডেট করা হবে।

@@ -1,6 +1,6 @@
 ---
 id: DOC-AUR-070
-title: Aura Bell — Complete Database Schema Specification (43 Tables)
+title: Aura Bell — Complete Database Schema Specification (50 Tables)
 type: database
 status: confirmed
 version: 1.0
@@ -9,9 +9,9 @@ source: AB-DS-001 (Google Docs: 11-qT675s8QXOKJSO5sIbzbhr4LXK7PYPH4d0pnnrUUs)
 last_updated: 2026-11-04
 ---
 
-# Aura Bell — Complete Database Schema (৪৩টি টেবিলের বিশদ স্কিমা)
+# Aura Bell — Complete Database Schema (৫০টি টেবিলের বিশদ স্কিমা)
 
-Aura Bell প্ল্যাটফর্মের ডাটাবেজ মডেলটি ১১টি প্রধান ডোমেনে বিভক্ত ৪৩টি সুসংগঠিত রিলেশনাল টেবিল নিয়ে গঠিত।
+Aura Bell প্ল্যাটফর্মের ডাটাবেজ মডেলটি ১১টি প্রধান ডোমেনে বিভক্ত ৫০টি সুসংগঠিত রিলেশনাল টেবিল নিয়ে গঠিত।
 
 ---
 
@@ -83,3 +83,8 @@ Aura Bell প্ল্যাটফর্মের ডাটাবেজ মড�
 45. `notification_templates`: মেসেজ টেমপ্লেটস।
 46. `idempotency_keys`: এপিআই ডুপ্লিকেট রিকোয়েস্ট রোধক কি।
 47. `daily_reports`: দৈনিক বিক্রয়, কালেকশন ও স্টক ক্যাশ সামারি।
+
+## ১২. প্রমোশন ম্যাপিং (Promotion Mapping)
+48. `promotion_products`: Maps promotions to eligible products. Composite PK (promotion_id, product_id). Empty mapping means promotion applies to all products.
+49. `promotion_stores`: Maps promotions to eligible stores. Composite PK (promotion_id, store_id). Empty mapping means promotion applies to all stores.
+50. `promotion_redemptions`: Immutable audit of promotion usage. UNIQUE(promotion_id, order_id) enforces one redemption per order per promotion.

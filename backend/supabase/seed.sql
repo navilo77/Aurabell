@@ -1,0 +1,3 @@
+-- Initial seed file for local development
+-- This file is loaded after migrations during `supabase db reset`
+-- Add custom seed data here if needed
