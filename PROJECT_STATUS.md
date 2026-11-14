@@ -9,7 +9,7 @@
 
 ## বর্তমান ফেজ (Current Phase)
 
-`M1.3 Core Identity & Auth Integration`
+`M1.5 Store Management & Policy Engine`
 
 ## বিগত অর্জন (Recent Achievements)
 
@@ -30,10 +30,10 @@
 
 ## ডেভেলপমেন্ট মেটাডেটা (Development Metadata)
 
-**Last Updated:** 2026-11-13  
-**Current Sprint:** M1.3  
+**Last Updated:** 2026-11-14  
+**Current Sprint:** M1.5  
 **Total Sub-milestones:** 27  
-**Completed:** 2  
-**Remaining:** 25  
+**Completed:** 4  
+**Remaining:** 23  
 
 **প্রথম ৬টি মাইলস্টোন সম্পন্ন:** 50%

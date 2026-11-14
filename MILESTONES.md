@@ -255,12 +255,12 @@ flowchart LR
       * [x] Stock Immutability Trigger (`prevent_stock_movement_mutation`)
       * [x] Initial RLS Policies (12 policies applied)
       * [x] Base Seed Data Inserted (7 Roles, 2 Stores)
-  * [ ] **M1.3: Core Identity & Auth Integration** `[Status: PENDING]`
+  * [x] **M1.3: Core Identity & Auth Integration** `[Status: COMPLETED]`
     * *Scope*: Supabase GoTrue JWT middleware, RBAC injection (`require_role`), user profile & address book CRUD
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M1.4: Base Seed Data Initialization** `[Status: PENDING]`
+    * *Completion Date*: `2026-11-14` | *Verified By*: `Kilo Code + Owner`
+  * [x] **M1.4: Base Seed Data Initialization** `[Status: COMPLETED]`
     * *Scope*: Roles, default central warehouse, Best Gadget & Aura Skin Care stores seeded
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+    * *Completion Date*: `2026-11-14` | *Verified By*: `Kilo Code + Owner`
 
 ---
 
