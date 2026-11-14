@@ -54,13 +54,13 @@ flowchart LR
   * *টেবিলস:* 50 রিলেশনাল টেবিল + এনামস + চেক কনস্ট্রেইন্ট + ফরেন কি ক্যাস্কেড স্ক্রিপ্ট।
   * *আরএলএস:* 12টি বিধান সহ Row Level Security পলিসি ইনিশিয়ালাইজেশন।
 
-* **M1.3: Core Identity & Auth Integration**
+* **M1.3: Core Identity & Auth Integration** `[x] [Status: COMPLETED]`
   * Supabase Auth (GoTrue) পিকেসিই ফ্লো ও ওটিপি/ইমেইল লগইন মিডলওয়্যার তৈরি।
   * বিয়ারার JWT টোকেন সিগনেচার, এক্সপায়ারি ও অডিয়েন্স ভ্যালিডেশন।
   * রোল-বেসড এক্সেস কন্ট্রোল (RBAC) ডিপেন্ডেন্সি ইনজেকশন (`require_role()`)।
   * ইউজার প্রোফাইল (`profiles`) ও অ্যাড্রেস বুক (`addresses`) CRUD এপিআই।
 
-* **M1.4: Base Seed Data Initialization**
+* **M1.4: Base Seed Data Initialization** `[x] [Status: COMPLETED]`
   * সিস্টেম রোলস (`Super Admin`, `Store Manager`, `Inventory Manager`, `Customer`) সিডিং।
   * ডিফল্ট সেন্ট্রাল ওয়্যারহাউস (`Main Central Warehouse`) সিডিং।
   * প্রাথমিক দুটি ফ্ল্যাগশিপ স্টোর সিডিং: **Best Gadget** (`best-gadget`) ও **Aura Skin Care** (`aura-skin-care`)।
