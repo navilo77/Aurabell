@@ -10,6 +10,7 @@ from __future__ import annotations
 import test_config  # noqa: F401
 
 import asyncio
+from dotenv import load_dotenv
 import os
 import subprocess
 import time
@@ -18,6 +19,9 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+
+load_dotenv()
+print(f"Loaded SUPABASE_ANON_KEY: {os.getenv('SUPABASE_ANON_KEY')}")
 
 
 # ─── Supabase Local Lifecycle ──────────────────────────────────────────────
@@ -135,8 +139,8 @@ def supabase_admin_client():
     """Supabase admin client with service role key (bypasses RLS)."""
     from supabase import create_client
 
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     return create_client(url, key)
 
 
@@ -145,8 +149,8 @@ def supabase_anon_client():
     """Supabase anon client (respects RLS)."""
     from supabase import create_client
 
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_ANON_KEY"]
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_ANON_KEY")
     return create_client(url, key)
 
 
