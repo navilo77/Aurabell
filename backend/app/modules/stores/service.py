@@ -77,8 +77,8 @@ class StoresService:
             logo_url=row["logo_url"],
             primary_color=row["primary_color"],
             status=row["status"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
         )
 
     async def get_store(self, store_id: str) -> StoreRead:
@@ -102,8 +102,8 @@ class StoresService:
             logo_url=row["logo_url"],
             primary_color=row["primary_color"],
             status=row["status"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
         )
 
     async def list_stores(self) -> list[StoreRead]:
@@ -124,8 +124,8 @@ class StoresService:
                 logo_url=row["logo_url"],
                 primary_color=row["primary_color"],
                 status=row["status"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
+                created_at=str(row["created_at"]),
+                updated_at=str(row["updated_at"]),
             )
             for row in rows
         ]
@@ -197,8 +197,8 @@ class StoresService:
             logo_url=row["logo_url"],
             primary_color=row["primary_color"],
             status=row["status"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
         )
 
     async def _generate_unique_slug(self, base_slug: str) -> str:
@@ -251,8 +251,8 @@ class StoresService:
             policy_type=row["policy_type"],
             policy_content=row["policy_content"],
             is_active=row["is_active"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
         )
 
     async def create_warranty_policy(self, store_id: str, data: WarrantyPolicyCreate) -> PolicyRead:
@@ -288,8 +288,8 @@ class StoresService:
             policy_type=row["policy_type"],
             policy_content=row["policy_content"],
             is_active=row["is_active"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
         )
 
     async def create_terms_conditions(self, store_id: str, data: TermsConditionsCreate) -> PolicyRead:
@@ -325,8 +325,8 @@ class StoresService:
             policy_type=row["policy_type"],
             policy_content=row["policy_content"],
             is_active=row["is_active"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
         )
 
     async def get_store_policies(self, store_id: str) -> list[PolicyRead]:
@@ -347,8 +347,8 @@ class StoresService:
                 policy_type=row["policy_type"],
                 policy_content=row["policy_content"],
                 is_active=row["is_active"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
+                created_at=str(row["created_at"]),
+                updated_at=str(row["updated_at"]),
             )
             for row in rows
         ]
@@ -378,6 +378,6 @@ class StoresService:
             logo_url=row["logo_url"],
             primary_color=row["primary_color"],
             status=row["status"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
         )
