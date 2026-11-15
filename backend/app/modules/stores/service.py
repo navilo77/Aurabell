@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import delete, insert, select, update
+from datetime import datetime
+
+from sqlalchemy import delete, insert, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import User
@@ -38,7 +40,7 @@ class StoresService:
 
         # Check if slug already exists
         existing = await self.db.execute(
-            select("id").select_from("stores").where("slug = :slug"),
+            text("SELECT id FROM stores WHERE slug = :slug"),
             {"slug": slug},
         )
         if existing.scalar_one_or_none():
@@ -49,26 +51,20 @@ class StoresService:
             )
 
         result = await self.db.execute(
-            insert("stores")
-            .values(
-                name=data.name,
-                slug=slug,
-                description=data.description,
-                logo_url=data.logo_url,
-                primary_color=data.primary_color,
-                status=data.status,
-            )
-            .returning(
-                "id",
-                "name",
-                "slug",
-                "description",
-                "logo_url",
-                "primary_color",
-                "status",
-                "created_at",
-                "updated_at",
+            text(
+                "INSERT INTO stores "
+                "(name, slug, description, logo_url, primary_color, status) "
+                "VALUES (:name, :slug, :description, :logo_url, :primary_color, :status) "
+                "RETURNING id, name, slug, description, logo_url, primary_color, status, created_at, updated_at"
             ),
+            {
+                "name": data.name,
+                "slug": slug,
+                "description": data.description,
+                "logo_url": data.logo_url,
+                "primary_color": data.primary_color,
+                "status": data.status,
+            },
         )
         await self.db.commit()
 
@@ -88,19 +84,10 @@ class StoresService:
     async def get_store(self, store_id: str) -> StoreRead:
         """Get store by ID."""
         result = await self.db.execute(
-            select(
-                "id",
-                "name",
-                "slug",
-                "description",
-                "logo_url",
-                "primary_color",
-                "status",
-                "created_at",
-                "updated_at",
-            )
-            .select_from("stores")
-            .where("id = :store_id"),
+            text(
+                "SELECT id, name, slug, description, logo_url, primary_color, status, "
+                "created_at, updated_at FROM stores WHERE id = :store_id"
+            ),
             {"store_id": store_id},
         )
         row = result.mappings().first()
@@ -122,19 +109,10 @@ class StoresService:
     async def list_stores(self) -> list[StoreRead]:
         """List all stores."""
         result = await self.db.execute(
-            select(
-                "id",
-                "name",
-                "slug",
-                "description",
-                "logo_url",
-                "primary_color",
-                "status",
-                "created_at",
-                "updated_at",
-            )
-            .select_from("stores")
-            .order_by("created_at"),
+            text(
+                "SELECT id, name, slug, description, logo_url, primary_color, status, "
+                "created_at, updated_at FROM stores ORDER BY created_at"
+            ),
         )
         rows = result.mappings().all()
         return [
@@ -161,9 +139,7 @@ class StoresService:
         # If slug is being updated, check uniqueness
         if "slug" in update_data:
             existing = await self.db.execute(
-                select("id").select_from("stores").where(
-                    ("slug = :new_slug") & ("id != :store_id")
-                ),
+                text("SELECT id FROM stores WHERE slug = :new_slug AND id != :store_id"),
                 {"new_slug": update_data["slug"], "store_id": store_id},
             )
             if existing.scalar_one_or_none():
@@ -175,11 +151,10 @@ class StoresService:
 
         update_data["updated_at"] = datetime.utcnow()
 
+        set_clause = ", ".join(f"{key} = :{key}" for key in update_data)
         await self.db.execute(
-            update("stores")
-            .where("id = :store_id")
-            .values(**update_data),
-            {"store_id": store_id},
+            text(f"UPDATE stores SET {set_clause} WHERE id = :store_id"),
+            {"store_id": store_id, **update_data},
         )
         await self.db.commit()
 
@@ -189,12 +164,12 @@ class StoresService:
         """Delete store (cascade delete related policies)."""
         # Delete store policies first
         await self.db.execute(
-            delete("store_policies").where("store_id = :store_id"),
+            text("DELETE FROM store_policies WHERE store_id = :store_id"),
             {"store_id": store_id},
         )
 
         result = await self.db.execute(
-            delete("stores").where("id = :store_id").returning("id"),
+            text("DELETE FROM stores WHERE id = :store_id RETURNING id"),
             {"store_id": store_id},
         )
         if not result.scalar_one_or_none():
@@ -204,19 +179,10 @@ class StoresService:
     async def get_store_by_slug(self, slug: str) -> StoreRead:
         """Get store by slug."""
         result = await self.db.execute(
-            select(
-                "id",
-                "name",
-                "slug",
-                "description",
-                "logo_url",
-                "primary_color",
-                "status",
-                "created_at",
-                "updated_at",
-            )
-            .select_from("stores")
-            .where("slug = :slug"),
+            text(
+                "SELECT id, name, slug, description, logo_url, primary_color, status, "
+                "created_at, updated_at FROM stores WHERE slug = :slug"
+            ),
             {"slug": slug},
         )
         row = result.mappings().first()
@@ -241,7 +207,7 @@ class StoresService:
         counter = 1
         while True:
             existing = await self.db.execute(
-                select("id").select_from("stores").where("slug = :slug"),
+                text("SELECT id FROM stores WHERE slug = :slug"),
                 {"slug": slug},
             )
             if not existing.scalar_one_or_none():
@@ -256,29 +222,25 @@ class StoresService:
         """Create return policy for store."""
         # Verify store exists
         store_result = await self.db.execute(
-            select("id").select_from("stores").where("id = :store_id"),
+            text("SELECT id FROM stores WHERE id = :store_id"),
             {"store_id": store_id},
         )
         if not store_result.scalar_one_or_none():
             raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
 
         result = await self.db.execute(
-            insert("store_policies")
-            .values(
-                store_id=store_id,
-                policy_type="return",
-                policy_content=data.policy_content,
-                is_active=data.is_active,
-            )
-            .returning(
-                "id",
-                "store_id",
-                "policy_type",
-                "policy_content",
-                "is_active",
-                "created_at",
-                "updated_at",
+            text(
+                "INSERT INTO store_policies "
+                "(store_id, policy_type, policy_content, is_active) "
+                "VALUES (:store_id, :policy_type, :policy_content, :is_active) "
+                "RETURNING id, store_id, policy_type, policy_content, is_active, created_at, updated_at"
             ),
+            {
+                "store_id": store_id,
+                "policy_type": "return",
+                "policy_content": data.policy_content,
+                "is_active": data.is_active,
+            },
         )
         await self.db.commit()
 
@@ -297,29 +259,25 @@ class StoresService:
         """Create warranty policy for store."""
         # Verify store exists
         store_result = await self.db.execute(
-            select("id").select_from("stores").where("id = :store_id"),
+            text("SELECT id FROM stores WHERE id = :store_id"),
             {"store_id": store_id},
         )
         if not store_result.scalar_one_or_none():
             raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
 
         result = await self.db.execute(
-            insert("store_policies")
-            .values(
-                store_id=store_id,
-                policy_type="warranty",
-                policy_content=data.policy_content,
-                is_active=data.is_active,
-            )
-            .returning(
-                "id",
-                "store_id",
-                "policy_type",
-                "policy_content",
-                "is_active",
-                "created_at",
-                "updated_at",
+            text(
+                "INSERT INTO store_policies "
+                "(store_id, policy_type, policy_content, is_active) "
+                "VALUES (:store_id, :policy_type, :policy_content, :is_active) "
+                "RETURNING id, store_id, policy_type, policy_content, is_active, created_at, updated_at"
             ),
+            {
+                "store_id": store_id,
+                "policy_type": "warranty",
+                "policy_content": data.policy_content,
+                "is_active": data.is_active,
+            },
         )
         await self.db.commit()
 
@@ -338,29 +296,25 @@ class StoresService:
         """Create terms and conditions for store."""
         # Verify store exists
         store_result = await self.db.execute(
-            select("id").select_from("stores").where("id = :store_id"),
+            text("SELECT id FROM stores WHERE id = :store_id"),
             {"store_id": store_id},
         )
         if not store_result.scalar_one_or_none():
             raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
 
         result = await self.db.execute(
-            insert("store_policies")
-            .values(
-                store_id=store_id,
-                policy_type="terms_conditions",
-                policy_content=data.policy_content,
-                is_active=data.is_active,
-            )
-            .returning(
-                "id",
-                "store_id",
-                "policy_type",
-                "policy_content",
-                "is_active",
-                "created_at",
-                "updated_at",
+            text(
+                "INSERT INTO store_policies "
+                "(store_id, policy_type, policy_content, is_active) "
+                "VALUES (:store_id, :policy_type, :policy_content, :is_active) "
+                "RETURNING id, store_id, policy_type, policy_content, is_active, created_at, updated_at"
             ),
+            {
+                "store_id": store_id,
+                "policy_type": "terms_conditions",
+                "policy_content": data.policy_content,
+                "is_active": data.is_active,
+            },
         )
         await self.db.commit()
 
@@ -378,18 +332,11 @@ class StoresService:
     async def get_store_policies(self, store_id: str) -> list[PolicyRead]:
         """Get all policies for a store."""
         result = await self.db.execute(
-            select(
-                "id",
-                "store_id",
-                "policy_type",
-                "policy_content",
-                "is_active",
-                "created_at",
-                "updated_at",
-            )
-            .select_from("store_policies")
-            .where("store_id = :store_id")
-            .order_by("policy_type"),
+            text(
+                "SELECT id, store_id, policy_type, policy_content, is_active, "
+                "created_at, updated_at FROM store_policies "
+                "WHERE store_id = :store_id ORDER BY policy_type"
+            ),
             {"store_id": store_id},
         )
         rows = result.mappings().all()
@@ -412,21 +359,12 @@ class StoresService:
             raise AuthError(message="Invalid status", code="INVALID_STATUS", status_code=400)
 
         result = await self.db.execute(
-            update("stores")
-            .where("id = :store_id")
-            .values(status=status, updated_at=datetime.utcnow())
-            .returning(
-                "id",
-                "name",
-                "slug",
-                "description",
-                "logo_url",
-                "primary_color",
-                "status",
-                "created_at",
-                "updated_at",
+            text(
+                "UPDATE stores SET status = :status, updated_at = :updated_at "
+                "WHERE id = :store_id "
+                "RETURNING id, name, slug, description, logo_url, primary_color, status, created_at, updated_at"
             ),
-            {"store_id": store_id},
+            {"store_id": store_id, "status": status, "updated_at": datetime.utcnow()},
         )
         row = result.mappings().first()
         if not row:
