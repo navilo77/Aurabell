@@ -20,11 +20,18 @@ class AuthError(Exception):
     message: str = "Authentication failed"
     status_code: int = 401
 
-    def __init__(self, message: str | None = None, code: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str | None = None,
+        code: str | None = None,
+        status_code: int | None = None,
+    ) -> None:
         if message:
             self.message = message
         if code:
             self.code = code
+        if status_code is not None:
+            self.status_code = status_code
         super().__init__(self.message)
 
 
