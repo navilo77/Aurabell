@@ -298,3 +298,19 @@ async def get_store_policies(
             status_code=e.status_code,
             detail={"detail": e.message, "code": e.code},
         ) from e
+
+
+@router.get(
+    "/{slug}/categories",
+    response_model=list,
+    summary="Get store categories",
+)
+async def get_store_categories(
+    slug: str,
+    service: StoresService = Depends(get_stores_service),
+):
+    """Get categories for a store.
+
+    # TODO M2.2: category hierarchy
+    """
+    return []
