@@ -189,6 +189,28 @@ class StoresService:
         if not row:
             raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
 
+        # Fetch active policies for this store (public detail view)
+        policy_result = await self.db.execute(
+            text(
+                "SELECT id, store_id, policy_type, policy_content, is_active, "
+                "created_at, updated_at FROM store_policies "
+                "WHERE store_id = :store_id AND is_active = true"
+            ),
+            {"store_id": row["id"]},
+        )
+        policies = [
+            PolicyRead(
+                id=str(p["id"]),
+                store_id=str(p["store_id"]),
+                policy_type=p["policy_type"],
+                policy_content=p["policy_content"],
+                is_active=p["is_active"],
+                created_at=str(p["created_at"]),
+                updated_at=str(p["updated_at"]),
+            )
+            for p in policy_result.mappings().all()
+        ]
+
         return StoreRead(
             id=str(row["id"]),
             name=row["name"],
@@ -199,6 +221,7 @@ class StoresService:
             status=row["status"],
             created_at=str(row["created_at"]),
             updated_at=str(row["updated_at"]),
+            policies=policies,
         )
 
     async def _generate_unique_slug(self, base_slug: str) -> str:

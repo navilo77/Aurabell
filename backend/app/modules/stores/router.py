@@ -66,7 +66,7 @@ async def list_stores(
 
 
 @router.get(
-    "/{store_id}",
+    "/id/{store_id}",
     response_model=StoreRead,
     summary="Get store by ID",
 )
@@ -86,14 +86,13 @@ async def get_store(
 
 
 @router.get(
-    "/slug/{slug}",
+    "/{slug}",
     response_model=StoreRead,
     summary="Get store by slug",
 )
 async def get_store_by_slug(
     slug: str,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
 ):
     """Get store by slug."""
     try:
