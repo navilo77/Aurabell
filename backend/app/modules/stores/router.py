@@ -54,7 +54,7 @@ async def create_store(
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[StoreRead],
     summary="List all stores",
 )
