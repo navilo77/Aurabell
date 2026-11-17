@@ -28,6 +28,7 @@ class StoreRead(BaseModel):
     status: str
     created_at: str | None = None
     updated_at: str | None = None
+    policies: list[PolicyRead] = []
 
 
 class StoreUpdate(BaseModel):

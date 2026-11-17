@@ -42,6 +42,11 @@ last_updated: 2026-11-04
 | | `PATCH` | `/api/v1/admin/orders/{id}/status` | অর্ডার স্ট্যাটাস ম্যানুয়াল আপডেট | Admin |
 | | `GET` | `/api/v1/admin/inventory` | ইনভেন্টরি ব্যালেন্স ও ওয়্যারহাউস ভিউ | Admin |
 | | `POST` | `/api/v1/admin/inventory/adjust` | ফিজিক্যাল স্টক অ্যাডজাস্টমেন্ট এন্ট্রি | Admin |
+| **Admin Categories** | `POST` | `/api/v1/admin/categories` | নতুন ক্যাটাগরি তৈরি (রুট বা চাইল্ড) | Admin |
+| | `GET` | `/api/v1/admin/categories/{id}` | ক্যাটাগরি আইডি দিয়ে তালিকা | Admin |
+| | `PATCH` | `/api/v1/admin/categories/{id}` | ক্যাটাগরি ফিল্ড আপডেট | Admin |
+| | `DELETE` | `/api/v1/admin/categories/{id}` | ক্যাটাগরি মুছা (সফট ডিলিট) | Admin |
+| | `POST` | `/api/v1/admin/categories/{store_id}/reorder` | ক্যাটাগরির sort_order পুনর্বিন্যাস | Admin |
 | **Pricing** | `GET` | `/api/v1/pricing/calculate` | ভ্যারিয়েন্টের BDT মূল্য ও প্রযোজ্য প্রমোশন গণনা | Public |
 | | `GET` | `/api/v1/pricing/validate` | ক্লায়েন্টের মূল্য সার্ভার মূল্য দিয়ে যাচাই | Public |
 | **Admin Pricing** | `POST` | `/api/v1/admin/prices` | ভ্যারিয়েন্টের BDT মূল্য তৈরি | Admin |

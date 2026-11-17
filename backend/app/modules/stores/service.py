@@ -46,7 +46,7 @@ class StoresService:
         if existing.scalar_one_or_none():
             raise AuthError(
                 message="Store with this slug already exists",
-                code="DUPLICATE_SLUG",
+                code="CONFLICT",
                 status_code=409,
             )
 
@@ -92,7 +92,7 @@ class StoresService:
         )
         row = result.mappings().first()
         if not row:
-            raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
+            raise AuthError(message="Store not found", code="NOT_FOUND", status_code=404)
 
         return StoreRead(
             id=str(row["id"]),
@@ -145,7 +145,7 @@ class StoresService:
             if existing.scalar_one_or_none():
                 raise AuthError(
                     message="Store with this slug already exists",
-                    code="DUPLICATE_SLUG",
+                    code="CONFLICT",
                     status_code=409,
                 )
 
@@ -173,7 +173,7 @@ class StoresService:
             {"store_id": store_id},
         )
         if not result.scalar_one_or_none():
-            raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
+            raise AuthError(message="Store not found", code="NOT_FOUND", status_code=404)
         await self.db.commit()
 
     async def get_store_by_slug(self, slug: str) -> StoreRead:
@@ -187,7 +187,29 @@ class StoresService:
         )
         row = result.mappings().first()
         if not row:
-            raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
+            raise AuthError(message="Store not found", code="NOT_FOUND", status_code=404)
+
+        # Fetch active policies for this store (public detail view)
+        policy_result = await self.db.execute(
+            text(
+                "SELECT id, store_id, policy_type, policy_content, is_active, "
+                "created_at, updated_at FROM store_policies "
+                "WHERE store_id = :store_id AND is_active = true"
+            ),
+            {"store_id": row["id"]},
+        )
+        policies = [
+            PolicyRead(
+                id=str(p["id"]),
+                store_id=str(p["store_id"]),
+                policy_type=p["policy_type"],
+                policy_content=p["policy_content"],
+                is_active=p["is_active"],
+                created_at=str(p["created_at"]),
+                updated_at=str(p["updated_at"]),
+            )
+            for p in policy_result.mappings().all()
+        ]
 
         return StoreRead(
             id=str(row["id"]),
@@ -199,6 +221,7 @@ class StoresService:
             status=row["status"],
             created_at=str(row["created_at"]),
             updated_at=str(row["updated_at"]),
+            policies=policies,
         )
 
     async def _generate_unique_slug(self, base_slug: str) -> str:
@@ -226,7 +249,7 @@ class StoresService:
             {"store_id": store_id},
         )
         if not store_result.scalar_one_or_none():
-            raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
+            raise AuthError(message="Store not found", code="NOT_FOUND", status_code=404)
 
         result = await self.db.execute(
             text(
@@ -263,7 +286,7 @@ class StoresService:
             {"store_id": store_id},
         )
         if not store_result.scalar_one_or_none():
-            raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
+            raise AuthError(message="Store not found", code="NOT_FOUND", status_code=404)
 
         result = await self.db.execute(
             text(
@@ -300,7 +323,7 @@ class StoresService:
             {"store_id": store_id},
         )
         if not store_result.scalar_one_or_none():
-            raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
+            raise AuthError(message="Store not found", code="NOT_FOUND", status_code=404)
 
         result = await self.db.execute(
             text(
@@ -356,7 +379,7 @@ class StoresService:
     async def update_store_status(self, store_id: str, status: str) -> StoreRead:
         """Update store status (active/inactive)."""
         if status not in ("active", "inactive"):
-            raise AuthError(message="Invalid status", code="INVALID_STATUS", status_code=400)
+            raise AuthError(message="Invalid status", code="INVALID_INPUT", status_code=400)
 
         result = await self.db.execute(
             text(
@@ -368,7 +391,7 @@ class StoresService:
         )
         row = result.mappings().first()
         if not row:
-            raise AuthError(message="Store not found", code="STORE_NOT_FOUND", status_code=404)
+            raise AuthError(message="Store not found", code="NOT_FOUND", status_code=404)
 
         return StoreRead(
             id=str(row["id"]),

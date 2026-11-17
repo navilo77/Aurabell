@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user, require_role
+from app.core.database import get_db
 from app.core.exceptions import AuthError
+from app.modules.categories.schema import CategoryTree
+from app.modules.categories.service import CategoriesService
 from app.modules.stores.schema import (
     PolicyRead,
     ReturnPolicyCreate,
@@ -17,7 +21,6 @@ from app.modules.stores.schema import (
     WarrantyPolicyCreate,
 )
 from app.modules.stores.service import StoresService
-from app.core.database import get_db
 
 router = APIRouter(prefix="/stores", tags=["Stores"])
 
@@ -66,7 +69,7 @@ async def list_stores(
 
 
 @router.get(
-    "/{store_id}",
+    "/id/{store_id}",
     response_model=StoreRead,
     summary="Get store by ID",
 )
@@ -86,14 +89,13 @@ async def get_store(
 
 
 @router.get(
-    "/slug/{slug}",
+    "/{slug}",
     response_model=StoreRead,
     summary="Get store by slug",
 )
 async def get_store_by_slug(
     slug: str,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
 ):
     """Get store by slug."""
     try:
@@ -294,6 +296,26 @@ async def get_store_policies(
     """Get all policies for a store."""
     try:
         return await service.get_store_policies(store_id)
+    except AuthError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"detail": e.message, "code": e.code},
+        ) from e
+
+
+@router.get(
+    "/{slug}/categories",
+    response_model=list[CategoryTree],
+    summary="Get store categories",
+)
+async def get_store_categories(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get categories for a store as a nested tree."""
+    service = CategoriesService(db)
+    try:
+        return await service.get_store_categories_tree(slug)
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,

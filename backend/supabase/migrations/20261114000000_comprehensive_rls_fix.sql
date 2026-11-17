@@ -37,31 +37,37 @@ ALTER TABLE public.daily_reports ENABLE ROW LEVEL SECURITY;
 -- - System Admins: Can access everything
 
 -- 1. Profiles Table - Users can only access their own profile
+DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
 CREATE POLICY "Users can read own profile" ON public.profiles
     FOR SELECT TO authenticated
     USING (id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
     FOR UPDATE TO authenticated
     USING (id = auth.uid())
     WITH CHECK (id = auth.uid());
 
 -- 2. Addresses Table - Users can manage their own addresses
+DROP POLICY IF EXISTS "Users can read own addresses" ON public.addresses;
 CREATE POLICY "Users can read own addresses" ON public.addresses
     FOR SELECT TO authenticated
     USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can manage own addresses" ON public.addresses;
 CREATE POLICY "Users can manage own addresses" ON public.addresses
     FOR ALL TO authenticated
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
 -- 3. Stores Table - Read access for everyone, write access for admins/managers
+DROP POLICY IF EXISTS "Read-only access to stores" ON public.stores;
 CREATE POLICY "Read-only access to stores" ON public.stores
     FOR SELECT TO authenticated
     USING (true);
 
 -- 4. Categories Table - Store-specific access
+DROP POLICY IF EXISTS "Store categories access" ON public.categories;
 CREATE POLICY "Store categories access" ON public.categories
     FOR ALL TO authenticated
     USING (
@@ -78,6 +84,7 @@ CREATE POLICY "Store categories access" ON public.categories
     );
 
 -- 5. Products Table - Store-specific access
+DROP POLICY IF EXISTS "Store products access" ON public.products;
 CREATE POLICY "Store products access" ON public.products
     FOR ALL TO authenticated
     USING (
@@ -94,6 +101,7 @@ CREATE POLICY "Store products access" ON public.products
     );
 
 -- 6. Product Variants - Product-specific access
+DROP POLICY IF EXISTS "Product variants access" ON public.product_variants;
 CREATE POLICY "Product variants access" ON public.product_variants
     FOR ALL TO authenticated
     USING (
@@ -110,6 +118,7 @@ CREATE POLICY "Product variants access" ON public.product_variants
     );
 
 -- 7. Product Images - Product-specific access
+DROP POLICY IF EXISTS "Product images access" ON public.product_images;
 CREATE POLICY "Product images access" ON public.product_images
     FOR ALL TO authenticated
     USING (
@@ -126,16 +135,19 @@ CREATE POLICY "Product images access" ON public.product_images
     );
 
 -- 8. Carts - User-specific access
+DROP POLICY IF EXISTS "Users can read own carts" ON public.carts;
 CREATE POLICY "Users can read own carts" ON public.carts
     FOR SELECT TO authenticated
     USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can manage own carts" ON public.carts;
 CREATE POLICY "Users can manage own carts" ON public.carts
     FOR ALL TO authenticated
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
 -- 9. Cart Items - Cart-specific access
+DROP POLICY IF EXISTS "Cart items access" ON public.cart_items;
 CREATE POLICY "Cart items access" ON public.cart_items
     FOR ALL TO authenticated
     USING (
@@ -154,15 +166,18 @@ CREATE POLICY "Cart items access" ON public.cart_items
     );
 
 -- 10. Orders - User-specific access
+DROP POLICY IF EXISTS "Users can read own orders" ON public.orders;
 CREATE POLICY "Users can read own orders" ON public.orders
     FOR SELECT TO authenticated
     USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can create orders" ON public.orders;
 CREATE POLICY "Users can create orders" ON public.orders
     FOR INSERT TO authenticated
     WITH CHECK (user_id = auth.uid());
 
 -- 11. Order Items - Order-specific access
+DROP POLICY IF EXISTS "Order items access" ON public.order_items;
 CREATE POLICY "Order items access" ON public.order_items
     FOR ALL TO authenticated
     USING (
@@ -179,6 +194,7 @@ CREATE POLICY "Order items access" ON public.order_items
     );
 
 -- 12. Order Addresses - Order-specific access
+DROP POLICY IF EXISTS "Order addresses access" ON public.order_addresses;
 CREATE POLICY "Order addresses access" ON public.order_addresses
     FOR ALL TO authenticated
     USING (
@@ -211,6 +227,7 @@ CREATE POLICY "Order addresses access" ON public.order_addresses
     );
 
 -- 13. Order Status History - Order-specific access
+DROP POLICY IF EXISTS "Order status history access" ON public.order_status_history;
 CREATE POLICY "Order status history access" ON public.order_status_history
     FOR ALL TO authenticated
     USING (
@@ -243,6 +260,7 @@ CREATE POLICY "Order status history access" ON public.order_status_history
     );
 
 -- 14. Store Orders - Store-specific access
+DROP POLICY IF EXISTS "Store orders access" ON public.store_orders;
 CREATE POLICY "Store orders access" ON public.store_orders
     FOR ALL TO authenticated
     USING (
@@ -281,6 +299,7 @@ CREATE POLICY "Store orders access" ON public.store_orders
     );
 
 -- 15. Warehouses - Store manager access
+DROP POLICY IF EXISTS "Store managers manage own warehouses" ON public.warehouses;
 CREATE POLICY "Store managers manage own warehouses" ON public.warehouses
     FOR ALL TO authenticated
     USING (
@@ -301,6 +320,7 @@ CREATE POLICY "Store managers manage own warehouses" ON public.warehouses
     );
 
 -- 16. Inventory Balances - Store/warehouse access
+DROP POLICY IF EXISTS "Inventory balances access" ON public.inventory_balances;
 CREATE POLICY "Inventory balances access" ON public.inventory_balances
     FOR ALL TO authenticated
     USING (
@@ -339,6 +359,7 @@ CREATE POLICY "Inventory balances access" ON public.inventory_balances
     );
 
 -- 17. Stock Movements - Immutable ledger, only admin access
+DROP POLICY IF EXISTS "Stock movements read-only" ON public.stock_movements;
 CREATE POLICY "Stock movements read-only" ON public.stock_movements
     FOR SELECT TO authenticated
     USING (
@@ -350,6 +371,7 @@ CREATE POLICY "Stock movements read-only" ON public.stock_movements
     );
 
 -- 18. Inventory Reservations - Store/warehouse access
+DROP POLICY IF EXISTS "Inventory reservations access" ON public.inventory_reservations;
 CREATE POLICY "Inventory reservations access" ON public.inventory_reservations
     FOR ALL TO authenticated
     USING (
@@ -396,6 +418,7 @@ CREATE POLICY "Inventory reservations access" ON public.inventory_reservations
     );
 
 -- 19. Product Batches - Product/store access
+DROP POLICY IF EXISTS "Product batches access" ON public.product_batches;
 CREATE POLICY "Product batches access" ON public.product_batches
     FOR ALL TO authenticated
     USING (
@@ -442,6 +465,7 @@ CREATE POLICY "Product batches access" ON public.product_batches
     );
 
 -- 20. Product Serials - Product/store access
+DROP POLICY IF EXISTS "Product serials access" ON public.product_serials;
 CREATE POLICY "Product serials access" ON public.product_serials
     FOR ALL TO authenticated
     USING (
@@ -488,6 +512,7 @@ CREATE POLICY "Product serials access" ON public.product_serials
     );
 
 -- 21. Payments - Order/access control
+DROP POLICY IF EXISTS "Payments access" ON public.payments;
 CREATE POLICY "Payments access" ON public.payments
     FOR ALL TO authenticated
     USING (
@@ -520,6 +545,7 @@ CREATE POLICY "Payments access" ON public.payments
     );
 
 -- 22. Refunds - Payment/access control
+DROP POLICY IF EXISTS "Refunds access" ON public.refunds;
 CREATE POLICY "Refunds access" ON public.refunds
     FOR ALL TO authenticated
     USING (
@@ -560,6 +586,7 @@ CREATE POLICY "Refunds access" ON public.refunds
     );
 
 -- 23. Expenses - Store/admin access
+DROP POLICY IF EXISTS "Expenses access" ON public.expenses;
 CREATE POLICY "Expenses access" ON public.expenses
     FOR ALL TO authenticated
     USING (
@@ -586,6 +613,7 @@ CREATE POLICY "Expenses access" ON public.expenses
     );
 
 -- 24. Shipments - Store/admin access
+DROP POLICY IF EXISTS "Shipments access" ON public.shipments;
 CREATE POLICY "Shipments access" ON public.shipments
     FOR ALL TO authenticated
     USING (
@@ -624,6 +652,7 @@ CREATE POLICY "Shipments access" ON public.shipments
     );
 
 -- 25. Financial Entries - Admin access only
+DROP POLICY IF EXISTS "Financial entries access" ON public.financial_entries;
 CREATE POLICY "Financial entries access" ON public.financial_entries
     FOR ALL TO authenticated
     USING (
@@ -642,6 +671,7 @@ CREATE POLICY "Financial entries access" ON public.financial_entries
     );
 
 -- 26. Return Requests - User/admin access
+DROP POLICY IF EXISTS "Return requests access" ON public.return_requests;
 CREATE POLICY "Return requests access" ON public.return_requests
     FOR ALL TO authenticated
     USING (
@@ -662,6 +692,7 @@ CREATE POLICY "Return requests access" ON public.return_requests
     );
 
 -- 27. Support Tickets - User/agent/admin access
+DROP POLICY IF EXISTS "Support tickets access" ON public.support_tickets;
 CREATE POLICY "Support tickets access" ON public.support_tickets
     FOR ALL TO authenticated
     USING (
@@ -682,6 +713,7 @@ CREATE POLICY "Support tickets access" ON public.support_tickets
     );
 
 -- 28. Support Messages - Ticket-specific access
+DROP POLICY IF EXISTS "Support messages access" ON public.support_messages;
 CREATE POLICY "Support messages access" ON public.support_messages
     FOR ALL TO authenticated
     USING (
@@ -714,6 +746,7 @@ CREATE POLICY "Support messages access" ON public.support_messages
     );
 
 -- 29. Audit Logs - Admin only
+DROP POLICY IF EXISTS "Audit logs access" ON public.audit_logs;
 CREATE POLICY "Audit logs access" ON public.audit_logs
     FOR SELECT TO authenticated
     USING (
@@ -725,6 +758,7 @@ CREATE POLICY "Audit logs access" ON public.audit_logs
     );
 
 -- 30. Outbox Events - Admin only
+DROP POLICY IF EXISTS "Outbox events access" ON public.outbox_events;
 CREATE POLICY "Outbox events access" ON public.outbox_events
     FOR ALL TO authenticated
     USING (
@@ -743,23 +777,27 @@ CREATE POLICY "Outbox events access" ON public.outbox_events
     );
 
 -- 31. Notifications - User-specific access
+DROP POLICY IF EXISTS "Notifications access" ON public.notifications;
 CREATE POLICY "Notifications access" ON public.notifications
     FOR ALL TO authenticated
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
 -- 32. Notification Templates - Read-only for all
+DROP POLICY IF EXISTS "Notification templates read-only" ON public.notification_templates;
 CREATE POLICY "Notification templates read-only" ON public.notification_templates
     FOR SELECT TO authenticated
     USING (true);
 
 -- 33. Idempotency Keys - User-specific access
+DROP POLICY IF EXISTS "Idempotency keys access" ON public.idempotency_keys;
 CREATE POLICY "Idempotency keys access" ON public.idempotency_keys
     FOR ALL TO authenticated
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
 -- 34. Daily Reports - Store/admin access
+DROP POLICY IF EXISTS "Daily reports access" ON public.daily_reports;
 CREATE POLICY "Daily reports access" ON public.daily_reports
     FOR ALL TO authenticated
     USING (

@@ -16,6 +16,10 @@ from app.core.config import settings
 from app.modules.auth.router import router as auth_router
 from app.modules.pricing.router import router as pricing_router
 from app.modules.pricing.service import PricingError
+from app.modules.categories.router import admin_router as categories_admin_router
+from app.modules.categories.router import public_router as categories_public_router
+from app.modules.products.router import admin_router as products_admin_router
+from app.modules.products.router import public_router as products_public_router
 from app.modules.stores.router import router as stores_router
 from app.modules.users.router import router as users_router
 
@@ -77,6 +81,10 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(pricing_router, prefix="/api/v1")
 app.include_router(stores_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
+app.include_router(categories_admin_router, prefix="/api/v1")
+app.include_router(categories_public_router, prefix="/api/v1")
+app.include_router(products_admin_router, prefix="/api/v1")
+app.include_router(products_public_router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")

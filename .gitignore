@@ -77,6 +77,19 @@ local_postgres_data/
 
 # Temporary and log files
 *.log
+audit.txt
+traceback.log
 tmp/
 temp/
+
+# Misc generated artifacts
+"tatus --short"
+
+# Agent configs & proposals (local, not committed)
+AGENT_RULES.md
+AURABELL_AGENT_ROLE.md
+CONFIGURATION_STATUS_REPORT.md
+KILA_CONFIG_PROPOSAL.md
+SHARED_ROLE_VALIDATION_REPORT.md
+kilo.jsonc
 
