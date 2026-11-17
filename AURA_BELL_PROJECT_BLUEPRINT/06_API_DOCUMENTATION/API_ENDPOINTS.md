@@ -42,3 +42,17 @@ last_updated: 2026-11-04
 | | `PATCH` | `/api/v1/admin/orders/{id}/status` | অর্ডার স্ট্যাটাস ম্যানুয়াল আপডেট | Admin |
 | | `GET` | `/api/v1/admin/inventory` | ইনভেন্টরি ব্যালেন্স ও ওয়্যারহাউস ভিউ | Admin |
 | | `POST` | `/api/v1/admin/inventory/adjust` | ফিজিক্যাল স্টক অ্যাডজাস্টমেন্ট এন্ট্রি | Admin |
+| **Pricing** | `GET` | `/api/v1/pricing/calculate` | ভ্যারিয়েন্টের BDT মূল্য ও প্রযোজ্য প্রমোশন গণনা | Public |
+| | `GET` | `/api/v1/pricing/validate` | ক্লায়েন্টের মূল্য সার্ভার মূল্য দিয়ে যাচাই | Public |
+| **Admin Pricing** | `POST` | `/api/v1/admin/prices` | ভ্যারিয়েন্টের BDT মূল্য তৈরি | Admin |
+| | `PATCH` | `/api/v1/admin/prices/{id}` | ভ্যারিয়েন্টের মূল্য পরিবর্তন | Admin |
+| | `DELETE` | `/api/v1/admin/prices/{id}` | ভ্যারিয়েন্টের মূল্য নিষ্ক্রিয় | Admin |
+| | `POST` | `/api/v1/admin/promotions` | কুপন বা প্রমোশন তৈরি | Admin |
+| | `PATCH` | `/api/v1/admin/promotions/{id}` | কুপন বা প্রমোশন পরিবর্তন | Admin |
+| | `DELETE` | `/api/v1/admin/promotions/{id}` | প্রমোশন নিষ্ক্রিয় | Admin |
+| | `POST` | `/api/v1/admin/promotions/{promoId}/products` | প্রমোশনে পণ্য যুক্ত | Admin |
+| | `DELETE` | `/api/v1/admin/promotions/{promoId}/products/{productId}` | প্রমোশন থেকে পণ্য সরানো | Admin |
+| | `POST` | `/api/v1/admin/promotions/{promoId}/stores` | প্রমোশনে স্টোর যুক্ত | Admin |
+| | `DELETE` | `/api/v1/admin/promotions/{promoId}/stores/{storeId}` | প্রমোশন থেকে স্টোর সরানো | Admin |
+
+Pricing calculation and validation accept `variant_id` and `store_id`; they use the current active BDT price and never trust a client-supplied price. Pass `coupon_code` to validate and apply that code; without one, only automatic promotions (promotions with no coupon code) are considered. For a promotion, product and store mappings are independent optional scopes; when a scope has mappings, the requested product/store must match. If more than one automatic promotion applies, the largest non-stacking discount is used. Admin price writes require the `admin` or `owner` role.

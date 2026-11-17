@@ -6,13 +6,16 @@ Includes CORS, TrustedHost, HSTS, and secure cookie middleware.
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
 from app.modules.auth.router import router as auth_router
+from app.modules.pricing.router import router as pricing_router
+from app.modules.pricing.service import PricingError
 from app.modules.stores.router import router as stores_router
 from app.modules.users.router import router as users_router
 
@@ -21,6 +24,15 @@ app = FastAPI(
     version="0.1.0",
     description="Aura Bell multi-store e-commerce backend API.",
 )
+
+
+@app.exception_handler(PricingError)
+async def handle_pricing_error(request: Request, exc: PricingError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.message, "code": exc.code},
+    )
+
 
 # ─── Security Middleware ────────────────────────────────────────────────────
 
@@ -62,6 +74,7 @@ async def add_hsts_header(request, call_next):
 # ─── API Routes ─────────────────────────────────────────────────────────────
 
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(pricing_router, prefix="/api/v1")
 app.include_router(stores_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 

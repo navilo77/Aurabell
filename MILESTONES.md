@@ -276,9 +276,9 @@ flowchart LR
   * [ ] **M2.3: Product Catalog & Variant Generator** `[Status: PENDING]`
     * *Scope*: Products, SKU generation per variant, Supabase Storage image upload
     * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M2.4: Server-Side Pricing Engine** `[Status: PENDING]`
+  * [x] **M2.4: Server-Side Pricing Engine** `[Status: COMPLETE]`
     * *Scope*: BDT currency pricing, promo discounts, tamper-proof server-side validation
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+    * *Completion Date*: `2026-11-17` | *Verified By*: Pricing unit and isolated PostgreSQL integration tests
 
 ---
 
