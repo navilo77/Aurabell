@@ -250,26 +250,26 @@ flowchart LR
   - [x] **M2.4: Server-Side Pricing Engine** `[Status: COMPLETE]`
     - *Scope*: BDT currency pricing, promo discounts, tamper-proof server-side validation
     - *Completion Date*: `2026-11-17` | *Verified By*: `Pricing unit tests (4/4 pass); DB integration test after coupon migration applied`
-
 ---
 
-### 🔲 MILESTONE 3: Concurrency-Safe Inventory & Warehouse Ledger
-- [x] **M3.0: Main Milestone 3 — Inventory Balances, Atomic Reservations & Ledger** `[Status: IN PROGRESS]`
-  - [x] **M3.1: Warehouse Stock Balances** `[Status: COMPLETE]`
+### ✅ MILESTONE 3: Concurrency-Safe Inventory & Warehouse Ledger
+
+- [x] **M3.0: Main Milestone 3 — Inventory Balances, Atomic Reservations & Ledger** `[Status: COMPLETED]`
+  - [x] **M3.1: Warehouse Stock Balances** `[Status: COMPLETED]`
     - *Scope*: `inventory_balances` table, real-time quantity tracking, zero negative stock enforcement
-    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
-  - [x] **M3.2: Atomic Stock Reservation Engine** `[Status: COMPLETE]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `18/18 inventory tests passed — M3.1 validated`
+  - [x] **M3.2: Atomic Stock Reservation Engine** `[Status: COMPLETED]`
     - *Scope*: `SELECT FOR UPDATE` row locks, 15-minute TTL reservation records
-    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
-  - [x] **M3.3: Automatic Reservation Cleanup Worker** `[Status: COMPLETE]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `18/18 inventory tests passed — M3.2 validated`
+  - [x] **M3.3: Automatic Reservation Cleanup Worker** `[Status: COMPLETED]`
     - *Scope*: 1-minute interval background cron to release expired reservations back to available stock
-    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
-  - [x] **M3.4: Immutable Stock Movement Ledger** `[Status: COMPLETE]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `18/18 inventory tests passed — M3.3 cleanup loop wired in lifespan`
+  - [x] **M3.4: Immutable Stock Movement Ledger** `[Status: COMPLETED]`
     - *Scope*: `stock_movements` append-only audit trail for inbounds, sales, adjustments, returns
-    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
-  - [x] **M3.5: Specialized Tracking (Batch & Serial)** `[Status: COMPLETE]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `18/18 inventory tests passed — M3.4 validated`
+  - [x] **M3.5: Specialized Tracking (Batch & Serial)** `[Status: COMPLETED]`
     - *Scope*: Skincare expiry/batch tracking & Gadget IMEI/serial tracking
-    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `18/18 inventory tests passed — M3.5 validated`
 
 ---
 

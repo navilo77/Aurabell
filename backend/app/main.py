@@ -6,6 +6,8 @@ Includes CORS, TrustedHost, HSTS, and secure cookie middleware.
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,9 +15,11 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
+from app.core.database import async_session_factory
 from app.modules.auth.router import router as auth_router
 from app.modules.inventory.router import admin_router as inventory_admin_router
 from app.modules.inventory.router import public_router as inventory_public_router
+from app.modules.inventory.service import InventoryService
 from app.modules.pricing.router import router as pricing_router
 from app.modules.pricing.service import PricingError
 from app.modules.categories.router import admin_router as categories_admin_router
@@ -25,10 +29,44 @@ from app.modules.products.router import public_router as products_public_router
 from app.modules.stores.router import router as stores_router
 from app.modules.users.router import router as users_router
 
+_cleanup_task: asyncio.Task | None = None
+_CLEANUP_INTERVAL_SECONDS = 60
+
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    global _cleanup_task
+
+    async def cleanup_loop() -> None:
+        while True:
+            try:
+                async with async_session_factory() as session:
+                    svc = InventoryService(session)
+                    await svc.cleanup_expired_reservations()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # Keep the worker alive across transient failures.
+                pass
+            await asyncio.sleep(_CLEANUP_INTERVAL_SECONDS)
+
+    _cleanup_task = asyncio.create_task(cleanup_loop())
+    try:
+        yield
+    finally:
+        if _cleanup_task:
+            _cleanup_task.cancel()
+            try:
+                await _cleanup_task
+            except asyncio.CancelledError:
+                pass
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="0.1.0",
     description="Aura Bell multi-store e-commerce backend API.",
+    lifespan=lifespan,
 )
 
 

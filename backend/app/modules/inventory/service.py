@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -406,7 +406,7 @@ class InventoryService:
                 "INSERT INTO stock_movements "
                 "(warehouse_id, variant_id, movement_type, quantity_delta, "
                 "reference_type, reference_id, note, created_by) "
-                "VALUES (:wid, :vid, 'consumed', -:qty, 'inventory_reservations', :rid, "
+                "VALUES (:wid, :vid, 'consumed', -CAST(:qty AS BIGINT), 'inventory_reservations', :rid, "
                 ":note, :created_by)"
             ),
             {
@@ -419,7 +419,7 @@ class InventoryService:
             },
         )
         await self.db.commit()
-        return self.get_reservation(reservation_id)
+        return await self.get_reservation(reservation_id)
 
     async def release_reservation(
         self,
@@ -468,7 +468,7 @@ class InventoryService:
             },
         )
         await self.db.commit()
-        return self.get_reservation(reservation_id)
+        return await self.get_reservation(reservation_id)
 
     async def cleanup_expired_reservations(self) -> int:
         """Expire active reservations past their TTL and release reserved stock.
@@ -560,6 +560,8 @@ class InventoryService:
     # ------------------------------------------------------------------
     async def create_batch(self, data: ProductBatchCreate) -> ProductBatchRead:
         """Create a product batch (skincare expiry tracking)."""
+        mfd = date.fromisoformat(data.manufacture_date) if data.manufacture_date else None
+        exp = date.fromisoformat(data.expiry_date)
         result = await self.db.execute(
             text(
                 "INSERT INTO product_batches "
@@ -571,8 +573,8 @@ class InventoryService:
             {
                 "vid": data.variant_id,
                 "bn": data.batch_number,
-                "mfd": data.manufacture_date,
-                "exp": data.expiry_date,
+                "mfd": mfd,
+                "exp": exp,
                 "qty": data.quantity_received,
             },
         )
@@ -622,6 +624,9 @@ class InventoryService:
         changes = data.model_dump(exclude_unset=True)
         if not changes:
             return await self.get_batch(batch_id)
+        for key in ("manufacture_date", "expiry_date"):
+            if changes.get(key):
+                changes[key] = date.fromisoformat(changes[key])
         set_clause = ", ".join(f"{key} = :{key}" for key in changes)
         result = await self.db.execute(
             text(
