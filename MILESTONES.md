@@ -3,7 +3,7 @@
 **প্রকল্প:** Aura Bell (Multi-Store E-commerce: Best Gadget & Aura Skin Care)  
 **আর্কিটেকচার:** Modular Monolith (FastAPI + Supabase PostgreSQL + Next.js)  
 **ভার্সন:** 1.1  
-**সর্বশেষ আপডেট:** 2026-11-08  
+**সর্বশেষ আপডেট:** 2026-11-17  
 **অনুমোদন স্থিতি:** APPROVED & READY FOR EXECUTION  
 
 ---
@@ -210,8 +210,8 @@ flowchart LR
 
 | মাইলস্টোন আইডি | শিরোনাম | নির্ভরশীলতা | মোট সাব-মাইলস্টোন | সমাপ্ত | অগ্রগতি | বর্তমান স্থিতি |
 | --- | --- | --- | :---: | :---: | :---: | :---: |
-| **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ২ | ৫০% | 🔄 IN PROGRESS |
-| **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ০ | ০% | 📋 Planned |
+| **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ৪ | ১০০% | ✅ COMPLETED |
+| **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ৪ | ১০০% | ✅ COMPLETED |
 | **MILESTONE 3** | **Concurrency-Safe Inventory & Ledger** | Milestone 2 | ৫টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 5** | **Payment Adapters & Webhook Engine** | Milestone 4 | ৫টি | ০ | ০% | 📋 Planned |
@@ -266,17 +266,17 @@ flowchart LR
 
 ### 🔲 MILESTONE 2: Multi-Store Catalog & Pricing Engine
 
-- [ ] **M2.0: Main Milestone 2 — Catalog, Categories, Variants & Pricing** `[Status: PLANNED]`
-  * [ ] **M2.1: Store Management & Policy Engine** `[Status: PENDING]`
+- [x] **M2.0: Main Milestone 2 — Catalog, Categories, Variants & Pricing** `[Status: COMPLETED]`
+  - [x] **M2.1: Store Management & Policy Engine** `[Status: COMPLETE]`
     * *Scope*: Store CRUD, slug routing, store-specific return/warranty policies
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M2.2: Category Hierarchy & Dynamic Attributes** `[Status: PENDING]`
+    * *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — pytest tests/test_stores.py (20/20 pass)`
+  - [x] **M2.2: Category Hierarchy & Dynamic Attributes** `[Status: COMPLETE]`
     * *Scope*: Parent-child category tree, Skincare ingredients, Gadget specs
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M2.3: Product Catalog & Variant Generator** `[Status: PENDING]`
+    * *Completion Date*: `2026-11-17` | *Verified By*: `Commit 29f935b feat(M2.2) implementation`
+  - [x] **M2.3: Product Catalog & Variant Generator** `[Status: COMPLETE]`
     * *Scope*: Products, SKU generation per variant, Supabase Storage image upload
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [x] **M2.4: Server-Side Pricing Engine** `[Status: COMPLETE]`
+    * *Completion Date*: `2026-11-17` | *Verified By*: `Commit 2b89b89 feat(M2.3) implementation`
+  - [x] **M2.4: Server-Side Pricing Engine** `[Status: COMPLETE]`
     * *Scope*: BDT currency pricing, promo discounts, tamper-proof server-side validation
     * *Completion Date*: `2026-11-17` | *Verified By*: Pricing unit and isolated PostgreSQL integration tests
 

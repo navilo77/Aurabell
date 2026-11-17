@@ -12,9 +12,25 @@ Comprehensive tests covering:
 
 from __future__ import annotations
 
-import pytest
+from uuid import uuid4
 
-# Import test fixtures from existing test structure
+import pytest
+from pydantic import ValidationError
+
+from app.modules.stores.schema import (
+    ReturnPolicyCreate,
+    StoreCreate,
+    StoreUpdate,
+    TermsConditionsCreate,
+    WarrantyPolicyCreate,
+)
+from app.modules.stores.service import StoresService
+
+
+def _suffix() -> str:
+    """Short random suffix so slugs stay unique across repeated runs."""
+    return uuid4().hex[:8]
+
 
 class TestStoreCRUD:
     """Core Store CRUD operations tests."""
@@ -22,55 +38,49 @@ class TestStoreCRUD:
     @pytest.mark.asyncio
     async def test_create_store_with_complete_data(self, db_session):
         """Test complete store creation with all fields."""
-        from app.modules.stores.service import StoresService
-        from app.modules.stores.schema import StoreCreate
-
         service = StoresService(db_session)
+        slug = f"test-store-1-{_suffix()}"
         data = StoreCreate(
-            name="Best Gadget Store",
-            slug="best-gadget", 
+            name="Test Store 1",
+            slug=slug,
             description="Premium electronics and accessories",
-            logo_url="https://example.com/best-gadget-logo.png",
+            logo_url="https://example.com/logo.png",
             primary_color="#FF6B6B",
-            status="active"
+            status="active",
         )
 
         result = await service.create_store(data)
         assert result.id is not None
-        assert result.name == "Best Gadget Store"
-        assert result.slug == "best-g .gadget"
+        assert result.name == "Test Store 1"
+        assert result.slug == slug
         assert result.status == "active"
 
     @pytest.mark.asyncio
     async def test_create_store_auto_slug(self, db_session):
         """Test store creation with automatic slug generation."""
-        from app.modules.stores.service import StoresService
-        from app.modules.stores.schema import StoreCreate
-
         service = StoresService(db_session)
         data = StoreCreate(
-            name="Aura Skin Care",
+            name=f"Auto Slug Store {_suffix()}",
             description="Natural skincare products",
             logo_url="https://example.com/aura-logo.png",
             primary_color="#A8D8A8",
-            status="active"
+            status="active",
         )
 
         result = await service.create_store(data)
-        assert result.slug == "aura-skin-care"
+        expected_slug = data.name.lower().replace(" ", "-")
+        assert result.slug == expected_slug
 
     @pytest.mark.asyncio
     async def test_get_store_by_id(self, db_session):
         """Test retrieving store by ID."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
         create_data = StoreCreate(
             name="Test Store",
-            slug="test-store",
+            slug=f"test-store-get-{_suffix()}",
             description="Test description",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
 
         created = await service.create_store(create_data)
@@ -81,8 +91,6 @@ class TestStoreCRUD:
     @pytest.mark.asyncio
     async def test_list_all_stores(self, db_session):
         """Test listing all stores in the system."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
         result = await service.list_stores()
         assert isinstance(result, list)
@@ -91,23 +99,20 @@ class TestStoreCRUD:
     @pytest.mark.asyncio
     async def test_update_store_basic(self, db_session):
         """Test updating store details."""
-        from app.modules.stores.service import StoresService
-        from app.modules.stores.schema import StoreCreate, StoreUpdate
-
         service = StoresService(db_session)
         create_data = StoreCreate(
             name="Original Store",
-            slug="original-store",
+            slug=f"original-store-{_suffix()}",
             description="Original description",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
 
         created = await service.create_store(create_data)
         update_data = StoreUpdate(
             name="Updated Store",
             description="Updated description",
-            status="inactive"
+            status="inactive",
         )
 
         updated = await service.update_store(created.id, update_data)
@@ -119,15 +124,13 @@ class TestStoreCRUD:
     @pytest.mark.asyncio
     async def test_delete_store(self, db_session):
         """Test deleting a store."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
         create_data = StoreCreate(
             name="To Be Deleted",
-            slug="delete-me",
+            slug=f"delete-me-{_suffix()}",
             description="This store will be deleted",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
 
         created = await service.create_store(create_data)
@@ -144,28 +147,24 @@ class TestStoreSlugManagement:
     @pytest.mark.asyncio
     async def test_slug_uniqueness_enforcement(self, db_session):
         """Test that slugs cannot be duplicated."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
-        # Create first store
+        suffix = _suffix()
         create_data1 = StoreCreate(
             name="Store One",
-            slug="store-one",
+            slug=f"store-one-{suffix}",
             description="First store",
             logo_url="https://example.com/logo1.png",
-            status="active"
+            status="active",
         )
 
         await service.create_store(create_data1)
 
-        # Try to create second store with identical slug
         create_data2 = StoreCreate(
             name="Store Two",
-            slug="store-one",  # Same slug as first store
+            slug=f"store-one-{suffix}",  # Same slug as first store
             description="Second store",
             logo_url="https://example.com/logo2.png",
-            status="active"
+            status="active",
         )
 
         with pytest.raises(Exception) as exc_info:
@@ -177,68 +176,63 @@ class TestStoreSlugManagement:
     @pytest.mark.asyncio
     async def test_slug_automatic_suffix(self, db_session):
         """Test automatic slug suffix generation for conflicts."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
+        suffix = _suffix()
+        base_name = f"Fashion Store {suffix}"
 
-        # Create first store
         create_data1 = StoreCreate(
-            name="Fashion Store",
-            slug="fashion-store",
+            name=base_name,
+            slug=f"fashion-store-{suffix}",
             description="Fashion items",
             logo_url="https://example.com/fashion-logo.png",
-            status="active"
+            status="active",
         )
 
         await service.create_store(create_data1)
 
-        # Create second store with same base name (should get -1 suffix)
+        # Second store gets the same base name, so auto‑generation appends -1
         create_data2 = StoreCreate(
-            name="Fashion Store",
+            name=base_name,
             description="Second fashion store",
             logo_url="https://example.com/fashion-logo2.png",
-            status="active"
+            status="active",
         )
 
         result = await service.create_store(create_data2)
-        assert result.slug == "fashion-store-1"
+        assert result.slug == f"fashion-store-{suffix}-1"
 
     @pytest.mark.asyncio
     async def test_slug_update_maintains_uniqueness(self, db_session):
         """Test that slug updates maintain uniqueness."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
+        suffix = _suffix()
 
-        # Create two stores
         create_data1 = StoreCreate(
             name="Store A",
-            slug="store-a",
+            slug=f"store-a-{suffix}",
             description="Store A description",
             logo_url="https://example.com/logo-a.png",
-            status="active"
+            status="active",
         )
 
         store_a = await service.create_store(create_data1)
 
         create_data2 = StoreCreate(
-            name="Store B", 
-            slug="store-b",
+            name="Store B",
+            slug=f"store-b-{suffix}",
             description="Store B description",
             logo_url="https://example.com/logo-b.png",
-            status="active"
+            status="active",
         )
 
         store_b = await service.create_store(create_data2)
 
-        # Update store A slug to store-b's slug (should fail)
-        from app.modules.stores.schema import StoreUpdate
-        update_data = StoreUpdate(slug="store-b")
+        update_data = StoreUpdate(slug=f"store-b-{suffix}")
 
         with pytest.raises(Exception) as exc_info:
             await service.update_store(store_a.id, update_data)
 
-        # Should raise duplicate slug error
+        assert "already exists" in str(exc_info.value) or "duplicate" in str(exc_info.value).lower()
 
 
 class TestStoreStatusManagement:
@@ -247,50 +241,45 @@ class TestStoreStatusManagement:
     @pytest.mark.asyncio
     async def test_toggle_store_status(self, db_session):
         """Test toggling store active/inactive status."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
         create_data = StoreCreate(
             name="Active Test Store",
-            slug="active-test",
+            slug=f"active-test-{_suffix()}",
             description="Currently active store",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
 
         store = await service.create_store(create_data)
 
-        # Change to inactive
         result = await service.update_store_status(store.id, "inactive")
         assert result.status == "inactive"
 
-        # Change back to active
         result = await service.update_store_status(store.id, "active")
         assert result.status == "active"
 
     @pytest.mark.asyncio
     async def test_invalid_status_rejected(self, db_session):
         """Test that invalid statuses are rejected."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
         create_data = StoreCreate(
             name="Invalid Status Test",
-            slug="invalid-status",
+            slug=f"invalid-status-{_suffix()}",
             description="Testing invalid status",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
 
         store = await service.create_store(create_data)
 
-        # Try to update with invalid status
-        with pytest.raises(Exception) as exc_info:
-            await service.update_store_status(store.id, "invalid_status")
+        from app.modules.stores.service import StoresService as _Svc
 
-        assert "Invalid status" in str(exc_info.value) or "status" in str(exc_info.value).lower()
+        invalid_service = _Svc(db_session)
+        with pytest.raises(Exception) as exc_info:
+            await invalid_service.update_store_status(store.id, "invalid_status")
+
+        error_message = str(exc_info.value)
+        assert "Invalid status" in error_message or "status" in error_message.lower()
 
 
 class TestStorePolicies:
@@ -299,143 +288,114 @@ class TestStorePolicies:
     @pytest.mark.asyncio
     async def test_create_return_policy(self, db_session):
         """Test creating return policy for store."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
-        # Create store first
         create_data = StoreCreate(
             name="Policy Test Store",
-            slug="policy-test",
+            slug=f"policy-test-{_suffix()}",
             description="Store for policy testing",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
-
         store = await service.create_store(create_data)
 
-        # Create return policy
-        from app.modules.stores.schema import ReturnPolicyCreate
         policy_data = ReturnPolicyCreate(
             policy_content={
                 "return_period_days": 30,
                 "condition": "unused",
-                "refund_method": "full"
+                "refund_method": "full",
             },
-            is_active=True
+            is_active=True,
         )
 
         result = await service.create_return_policy(store.id, policy_data)
         assert result.store_id == store.id
         assert result.policy_type == "return"
-        assert result.is_active == True
+        assert result.is_active is True
         assert result.policy_content["return_period_days"] == 30
 
     @pytest.mark.asyncio
     async def test_create_warranty_policy(self, db_session):
         """Test creating warranty policy for store."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
-        # Create store
         create_data = StoreCreate(
             name="Warranty Store",
-            slug="warranty-test",
+            slug=f"warranty-test-{_suffix()}",
             description="Store for warranty testing",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
-
         store = await service.create_store(create_data)
 
-        # Create warranty policy
-        from app.modules.stores.schema import WarrantyPolicyCreate
         policy_data = WarrantyPolicyCreate(
             policy_content={
                 "warranty_period_months": 24,
                 "coverage_type": "parts_and_labor",
-                "exclusions": ["wear_and_tear", "misuse"]
+                "exclusions": ["wear_and_tear", "misuse"],
             },
-            is_active=True
+            is_active=True,
         )
 
         result = await service.create_warranty_policy(store.id, policy_data)
         assert result.store_id == store.id
         assert result.policy_type == "warranty"
-        assert result.is_active == True
+        assert result.is_active is True
 
     @pytest.mark.asyncio
     async def test_create_terms_conditions(self, db_session):
         """Test creating terms and conditions for store."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
-        # Create store
         create_data = StoreCreate(
             name="Terms Store",
-            slug="terms-test",
+            slug=f"terms-test-{_suffix()}",
             description="Store for terms testing",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
-
         store = await service.create_store(create_data)
 
-        # Create terms and conditions
-        from app.modules.stores.schema import TermsConditionsCreate
         policy_data = TermsConditionsCreate(
             policy_content={
                 "shipping_time": "within 5 business days",
                 "return_window": "within 30 days",
-                "cancellation_policy": "full refund within 24 hours"
+                "cancellation_policy": "full refund within 24 hours",
             },
-            is_active=True
+            is_active=True,
         )
 
         result = await service.create_terms_conditions(store.id, policy_data)
         assert result.store_id == store.id
         assert result.policy_type == "terms_conditions"
-        assert result.is_active == True
+        assert result.is_active is True
 
     @pytest.mark.asyncio
     async def test_get_all_store_policies(self, db_session):
         """Test retrieving all policies for a store."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
-        # Create store
         create_data = StoreCreate(
             name="MultiPolicy Store",
-            slug="multi-policy",
+            slug=f"multi-policy-{_suffix()}",
             description="Store with multiple policies",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
-
         store = await service.create_store(create_data)
 
-        # Create multiple policies
         return_data = ReturnPolicyCreate(
             policy_content={"return_period_days": 60},
-            is_active=True
+            is_active=True,
         )
         await service.create_return_policy(store.id, return_data)
 
         warranty_data = WarrantyPolicyCreate(
             policy_content={"warranty_period_months": 12},
-            is_active=True
+            is_active=True,
         )
         await service.create_warranty_policy(store.id, warranty_data)
 
-        # Get all policies
         policies = await service.get_store_policies(store.id)
         assert isinstance(policies, list)
         assert len(policies) >= 2  # At least return and warranty policies
 
-        # Verify all policies belong to correct store
         for policy in policies:
             assert policy.store_id == store.id
 
@@ -446,13 +406,10 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_store_not_found_error(self, db_session):
         """Test proper error when store doesn't exist."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
 
-        # Try to get non-existent store
         with pytest.raises(Exception) as exc_info:
-            await service.get_store("non-existent-store-id")
+            await service.get_store(str(uuid4()))
 
         error_message = str(exc_info.value)
         assert "not found" in error_message.lower() or "not exist" in error_message.lower()
@@ -460,61 +417,52 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_duplicate_store_slug_error(self, db_session):
         """Test error handling for duplicate slugs."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
+        suffix = _suffix()
 
-        # Create first store
         create_data1 = StoreCreate(
             name="First Store",
-            slug="unique-slug-123",
+            slug=f"unique-slug-{suffix}",
             description="First store",
             logo_url="https://example.com/logo1.png",
-            status="active"
+            status="active",
         )
 
         await service.create_store(create_data1)
 
-        # Try to create second store with identical slug
         create_data2 = StoreCreate(
             name="Second Store",
-            slug="unique-slug-123",  # Same slug
+            slug=f"unique-slug-{suffix}",  # Same slug
             description="Second store",
             logo_url="https://example.com/logo2.png",
-            status="active"
+            status="active",
         )
 
         with pytest.raises(Exception) as exc_info:
             await service.create_store(create_data2)
 
-        # Verify error indicates duplicate slug
         error_message = str(exc_info.value)
         assert "already exists" in error_message or "duplicate" in error_message.lower()
 
     @pytest.mark.asyncio
-    async def test_invalid_store_data_rejected(self, db_session):
+    async def test_invalid_store_data_rejected(self):
         """Test that invalid store data is properly rejected."""
-        from app.modules.stores.schema import StoreCreate
-        from pydantic import ValidationError
-
-        # Try to create store with invalid data
         with pytest.raises(ValidationError):
             StoreCreate(
                 name="",  # Empty name should fail
                 slug="",
                 description="Test description",
                 logo_url="https://example.com/logo.png",
-                status="active"
+                status="active",
             )
 
-        # Try store with invalid status
         with pytest.raises(ValidationError):
             StoreCreate(
                 name="Valid Name",
                 slug="valid-slug",
                 description="Test description",
                 logo_url="https://example.com/logo.png",
-                status="invalid_status"  # Invalid status
+                status="invalid_status",  # Invalid status
             )
 
 
@@ -524,36 +472,23 @@ class TestAuthenticationAuthorization:
     @pytest.mark.asyncio
     async def test_store_manager_access(self, db_session):
         """Test that store managers can access store resources."""
-        from app.modules.stores.service import StoresService
-
         service = StoresService(db_session)
-
-        # Create store
         create_data = StoreCreate(
             name="Authorized Store",
-            slug="authorized-store",
+            slug=f"authorized-store-{_suffix()}",
             description="Store with authorized access",
             logo_url="https://example.com/logo.png",
-            status="active"
+            status="active",
         )
 
         store = await service.create_store(create_data)
 
-        # In real implementation, this would test role-based access
-        # For now, verify store operations work when authenticated
         retrieved = await service.get_store(store.id)
         assert retrieved.id == store.id
 
     @pytest.mark.asyncio
     async def test_cross_store_authorization_placeholder(self, db_session):
-        """Placeholder for cross-store authorization tests.
-
-        In a complete implementation, this would test:
-        - Store managers cannot access other stores' resources
-        - Super admins can access all stores
-        - Proper RBAC enforcement
-        """
-        # This test would be expanded with real RBAC tests
+        """Placeholder for cross-store authorization tests."""
         pass
 
 

@@ -3,7 +3,7 @@
 **প্রকল্প:** Aura Bell (Multi-Store E-commerce: Best Gadget & Aura Skin Care)  
 **আর্কিটেকচার:** Modular Monolith (FastAPI + Supabase PostgreSQL + Next.js)  
 **ভার্সন:** 1.1  
-**সর্বশেষ আপডেট:** 2026-11-08  
+**সর্বশেষ আপডেট:** 2026-11-17  
 **অনুমোদন স্থিতি:** APPROVED & READY FOR EXECUTION  
 
 ---
@@ -197,8 +197,8 @@ flowchart LR
 
 | মাইলস্টোন আইডি | শিরোনাম | নির্ভরশীলতা | মোট সাব-মাইলস্টোন | সমাপ্ত | অগ্রগতি | বর্তমান স্থিতি |
 |---|---|---|:---:|:---:|:---:|:---:|
-| **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ০ | ০% | ⏳ Ready to Start |
-| **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ০ | ০% | 📋 Planned |
+| **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ৪ | ১০০% | ✅ Completed |
+| **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ৪ | ১০০% | ✅ Completed |
 | **MILESTONE 3** | **Concurrency-Safe Inventory & Ledger** | Milestone 2 | ৫টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 5** | **Payment Adapters & Webhook Engine** | Milestone 4 | ৫টি | ০ | ০% | 📋 Planned |
@@ -219,37 +219,37 @@ flowchart LR
 
 ---
 
-### 🔲 MILESTONE 1: Infrastructure, Database & Foundation Scaffolding
-- [ ] **M1.0: Main Milestone 1 — Infrastructure, Database & Auth Foundation** `[Status: READY TO START]`
-  - [ ] **M1.1: Backend Repository & Config Scaffolding** `[Status: PENDING]`
+### ✅ MILESTONE 1: Infrastructure, Database & Foundation Scaffolding
+- [x] **M1.0: Main Milestone 1 — Infrastructure, Database & Auth Foundation** `[Status: COMPLETED]`
+  - [x] **M1.1: Backend Repository & Config Scaffolding** `[Status: COMPLETED]`
     - *Scope*: FastAPI app structure, Pydantic v2 settings, SQLAlchemy 2.0 Async, Docker setup, `/api/v1/health`
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M1.2: Supabase PostgreSQL DDL Migration Execution** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-13` | *Verified By*: `Kilo Code + Owner`
+  - [x] **M1.2: Supabase PostgreSQL DDL Migration Execution** `[Status: COMPLETED]`
     - *Scope*: 43 relational tables, enums, `set_updated_at()` trigger, check constraints, RLS policies
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M1.3: Core Identity & Auth Integration** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-13` | *Verified By*: `Kilo Code + Owner`
+  - [x] **M1.3: Core Identity & Auth Integration** `[Status: COMPLETED]`
     - *Scope*: Supabase GoTrue JWT middleware, RBAC injection (`require_role`), user profile & address book CRUD
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M1.4: Base Seed Data Initialization** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-14` | *Verified By*: `Kilo Code + Owner`
+  - [x] **M1.4: Base Seed Data Initialization** `[Status: COMPLETED]`
     - *Scope*: Roles, default central warehouse, Best Gadget & Aura Skin Care stores seeded
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+    - *Completion Date*: `2026-11-14` | *Verified By*: `Kilo Code + Owner`
 
 ---
 
-### 🔲 MILESTONE 2: Multi-Store Catalog & Pricing Engine
-- [ ] **M2.0: Main Milestone 2 — Catalog, Categories, Variants & Pricing** `[Status: PLANNED]`
-  - [ ] **M2.1: Store Management & Policy Engine** `[Status: PENDING]`
+### 🔄 MILESTONE 2: Multi-Store Catalog & Pricing Engine
+- [x] **M2.0: Main Milestone 2 — Catalog, Categories, Variants & Pricing** `[Status: COMPLETED]`
+  - [x] **M2.1: Store Management & Policy Engine** `[Status: COMPLETE]`
     - *Scope*: Store CRUD, slug routing, store-specific return/warranty policies
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M2.2: Category Hierarchy & Dynamic Attributes** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — tests/test_stores.py (20/20 pass)`
+  - [x] **M2.2: Category Hierarchy & Dynamic Attributes** `[Status: COMPLETE]`
     - *Scope*: Parent-child category tree, Skincare ingredients, Gadget specs
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M2.3: Product Catalog & Variant Generator** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Commit 29f935b feat(M2.2) implementation`
+  - [x] **M2.3: Product Catalog & Variant Generator** `[Status: COMPLETE]`
     - *Scope*: Products, SKU generation per variant, Supabase Storage image upload
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Commit 2b89b89 feat(M2.3) implementation`
   - [x] **M2.4: Server-Side Pricing Engine** `[Status: COMPLETE]`
     - *Scope*: BDT currency pricing, promo discounts, tamper-proof server-side validation
-    - *Completion Date*: `2026-11-17` | *Verified By*: Pricing unit and isolated PostgreSQL integration tests
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Pricing unit tests (4/4 pass); DB integration test after coupon migration applied`
 
 ---
 

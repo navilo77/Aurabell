@@ -20,8 +20,32 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
+
 load_dotenv()
 print(f"Loaded SUPABASE_ANON_KEY: {os.getenv('SUPABASE_ANON_KEY')}")
+
+# Test-only NullPool engine so a fresh connection is used per test and none
+# stay bound to a stale event loop across the function-scoped async loops.
+def _db_url() -> str:
+    from app.core.config import settings
+
+    return settings.DATABASE_URL
+
+
+_test_engine = create_async_engine(
+    _db_url(),
+    poolclass=NullPool,
+    pool_pre_ping=True,
+)
+_test_session_factory = async_sessionmaker(
+    bind=_test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+    autocommit=False,
+)
 
 
 # ─── Supabase Local Lifecycle ──────────────────────────────────────────────
@@ -111,16 +135,25 @@ def supabase_local() -> None:
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session() -> AsyncIterator[AsyncSession]:
-    """Yield a clean AsyncSession for each test function.
+    """Yield an AsyncSession wrapped in an outer transaction.
 
-    Rolls back all changes after the test.
+    The session joins the outer connection transaction with savepoints, so any
+    ``session.commit()`` performed by service code only releases a savepoint and
+    the outer transaction is rolled back afterwards. This keeps tests isolated
+    even though the services commit internally.
     """
-    from app.core.database import async_session_factory
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    async with async_session_factory() as session:
-        yield session
-        await session.rollback()
+    async with _test_engine.connect() as connection:
+        transaction = await connection.begin()
+        session = AsyncSession(
+            bind=connection,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
+        try:
+            yield session
+        finally:
+            await session.close()
+            await transaction.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -154,12 +187,3 @@ def supabase_anon_client():
     return create_client(url, key)
 
 
-# ─── Event Loop ────────────────────────────────────────────────────────────
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()

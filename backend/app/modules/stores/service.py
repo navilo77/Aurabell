@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 
 from sqlalchemy import delete, insert, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -261,7 +262,7 @@ class StoresService:
             {
                 "store_id": store_id,
                 "policy_type": "return",
-                "policy_content": data.policy_content,
+                "policy_content": json.dumps(data.policy_content),
                 "is_active": data.is_active,
             },
         )
@@ -298,7 +299,7 @@ class StoresService:
             {
                 "store_id": store_id,
                 "policy_type": "warranty",
-                "policy_content": data.policy_content,
+                "policy_content": json.dumps(data.policy_content),
                 "is_active": data.is_active,
             },
         )
@@ -335,7 +336,7 @@ class StoresService:
             {
                 "store_id": store_id,
                 "policy_type": "terms_conditions",
-                "policy_content": data.policy_content,
+                "policy_content": json.dumps(data.policy_content),
                 "is_active": data.is_active,
             },
         )

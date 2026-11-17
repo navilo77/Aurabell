@@ -81,6 +81,8 @@ audit.txt
 traceback.log
 tmp/
 temp/
+supabase/.branches/
+supabase/.temp/
 
 # Misc generated artifacts
 "tatus --short"
