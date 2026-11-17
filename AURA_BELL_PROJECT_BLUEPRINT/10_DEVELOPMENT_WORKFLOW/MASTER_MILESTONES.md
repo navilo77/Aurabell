@@ -199,7 +199,7 @@ flowchart LR
 |---|---|---|:---:|:---:|:---:|:---:|
 | **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ৪ | ১০০% | ✅ Completed |
 | **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ৪ | ১০০% | ✅ Completed |
-| **MILESTONE 3** | **Concurrency-Safe Inventory & Ledger** | Milestone 2 | ৫টি | ০ | ০% | 📋 Planned |
+| **MILESTONE 3** | **Concurrency-Safe Inventory & Ledger** | Milestone 2 | ৫টি | ৫ | ১০০% | ✅ Completed |
 | **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 5** | **Payment Adapters & Webhook Engine** | Milestone 4 | ৫টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 6** | **Storefronts, Admin & Production Launch**| Milestone 5 | ৫টি | ০ | ০% | 📋 Planned |
@@ -254,22 +254,22 @@ flowchart LR
 ---
 
 ### 🔲 MILESTONE 3: Concurrency-Safe Inventory & Warehouse Ledger
-- [ ] **M3.0: Main Milestone 3 — Inventory Balances, Atomic Reservations & Ledger** `[Status: PLANNED]`
-  - [ ] **M3.1: Warehouse Stock Balances** `[Status: PENDING]`
+- [x] **M3.0: Main Milestone 3 — Inventory Balances, Atomic Reservations & Ledger** `[Status: IN PROGRESS]`
+  - [x] **M3.1: Warehouse Stock Balances** `[Status: COMPLETE]`
     - *Scope*: `inventory_balances` table, real-time quantity tracking, zero negative stock enforcement
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M3.2: Atomic Stock Reservation Engine** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
+  - [x] **M3.2: Atomic Stock Reservation Engine** `[Status: COMPLETE]`
     - *Scope*: `SELECT FOR UPDATE` row locks, 15-minute TTL reservation records
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M3.3: Automatic Reservation Cleanup Worker** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
+  - [x] **M3.3: Automatic Reservation Cleanup Worker** `[Status: COMPLETE]`
     - *Scope*: 1-minute interval background cron to release expired reservations back to available stock
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M3.4: Immutable Stock Movement Ledger** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
+  - [x] **M3.4: Immutable Stock Movement Ledger** `[Status: COMPLETE]`
     - *Scope*: `stock_movements` append-only audit trail for inbounds, sales, adjustments, returns
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M3.5: Specialized Tracking (Batch & Serial)** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
+  - [x] **M3.5: Specialized Tracking (Batch & Serial)** `[Status: COMPLETE]`
     - *Scope*: Skincare expiry/batch tracking & Gadget IMEI/serial tracking
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code — inventory module code written + tests`
 
 ---
 
