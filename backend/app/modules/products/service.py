@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 
@@ -87,7 +88,7 @@ class ProductsService:
             )
             if not existing.scalar_one_or_none():
                 return slug
-                slug = f"{base_sku}-{counter}"
+            slug = f"{base_slug}-{counter}"
             counter += 1
 
     # ─── Referential Checks ─────────────────────────────────────────────────
@@ -165,7 +166,7 @@ class ProductsService:
             text(
                 "SELECT id, product_id, image_url, alt_text, sort_order, is_primary "
                 "FROM product_images WHERE product_id = :product_id "
-                "ORDER BY sort_order, created_at"
+                "ORDER BY sort_order"
             ),
             {"product_id": product_id},
         )
@@ -221,7 +222,7 @@ class ProductsService:
                 "product_id": product_id,
                 "sku": sku,
                 "variant_name": variant_data.variant_name,
-                "attributes": variant_data.attributes,
+                "attributes": json.dumps(variant_data.attributes) if variant_data.attributes else "{}",
                 "barcode": variant_data.barcode,
             },
         )

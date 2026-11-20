@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Sequence
 
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import User
@@ -30,19 +30,10 @@ class UsersService:
     async def get_profile(self, user: User) -> ProfileRead:
         """Get current user's profile."""
         result = await self.db.execute(
-            select(
-                "id",
-                "email",
-                "full_name",
-                "phone",
-                "avatar_url",
-                "status",
-                "created_at",
-                "updated_at",
-            ).select_from(
-                # Using raw SQL since we don't have ORM models yet
-                "profiles"
-            ).where("id = :user_id"),
+            text(
+                "SELECT id, email, full_name, phone, avatar_url, status, "
+                "created_at, updated_at FROM profiles WHERE id = :user_id"
+            ),
             {"user_id": user.id},
         )
         row = result.mappings().first()
@@ -68,11 +59,10 @@ class UsersService:
 
         update_data["updated_at"] = datetime.utcnow()
 
+        set_clause = ", ".join(f"{key} = :{key}" for key in update_data)
         await self.db.execute(
-            update("profiles")
-            .where("id = :user_id")
-            .values(**update_data),
-            {"user_id": user.id},
+            text(f"UPDATE profiles SET {set_clause} WHERE id = :user_id"),
+            {"user_id": user.id, **update_data},
         )
         await self.db.commit()
 
@@ -83,23 +73,12 @@ class UsersService:
     async def list_addresses(self, user: User) -> Sequence[AddressRead]:
         """List all addresses for current user."""
         result = await self.db.execute(
-            select(
-                "id",
-                "user_id",
-                "recipient_name",
-                "phone",
-                "division",
-                "district",
-                "upazila",
-                "area",
-                "address_line",
-                "postal_code",
-                "is_default",
-                "created_at",
-            )
-            .select_from("addresses")
-            .where("user_id = :user_id")
-            .order_by("created_at"),
+            text(
+                "SELECT id, user_id, recipient_name, phone, division, district, "
+                "upazila, area, address_line, postal_code, is_default, created_at "
+                "FROM addresses WHERE user_id = :user_id "
+                "ORDER BY created_at"
+            ),
             {"user_id": user.id},
         )
         rows = result.mappings().all()
@@ -126,40 +105,34 @@ class UsersService:
         # If this is the first address or is_default=True, unset other defaults
         if data.is_default:
             await self.db.execute(
-                update("addresses")
-                .where("user_id = :user_id")
-                .values(is_default=False),
+                text(
+                    "UPDATE addresses SET is_default = FALSE WHERE user_id = :user_id"
+                ),
                 {"user_id": user.id},
             )
 
         result = await self.db.execute(
-            insert("addresses")
-            .values(
-                user_id=user.id,
-                recipient_name=data.recipient_name,
-                phone=data.phone,
-                division=data.division,
-                district=data.district,
-                upazila=data.upazila,
-                area=data.area,
-                address_line=data.address_line,
-                postal_code=data.postal_code,
-                is_default=data.is_default,
-            )
-            .returning(
-                "id",
-                "user_id",
-                "recipient_name",
-                "phone",
-                "division",
-                "district",
-                "upazila",
-                "area",
-                "address_line",
-                "postal_code",
-                "is_default",
-                "created_at",
+            text(
+                "INSERT INTO addresses "
+                "(user_id, recipient_name, phone, division, district, upazila, "
+                "area, address_line, postal_code, is_default) "
+                "VALUES (:user_id, :recipient_name, :phone, :division, :district, "
+                ":upazila, :area, :address_line, :postal_code, :is_default) "
+                "RETURNING id, user_id, recipient_name, phone, division, district, "
+                "upazila, area, address_line, postal_code, is_default, created_at"
             ),
+            {
+                "user_id": user.id,
+                "recipient_name": data.recipient_name,
+                "phone": data.phone,
+                "division": data.division,
+                "district": data.district,
+                "upazila": data.upazila,
+                "area": data.area,
+                "address_line": data.address_line,
+                "postal_code": data.postal_code,
+                "is_default": data.is_default,
+            },
         )
         await self.db.commit()
 
@@ -182,22 +155,11 @@ class UsersService:
     async def get_address(self, user: User, address_id: str) -> AddressRead:
         """Get a specific address by ID (must belong to user)."""
         result = await self.db.execute(
-            select(
-                "id",
-                "user_id",
-                "recipient_name",
-                "phone",
-                "division",
-                "district",
-                "upazila",
-                "area",
-                "address_line",
-                "postal_code",
-                "is_default",
-                "created_at",
-            )
-            .select_from("addresses")
-            .where("id = :address_id AND user_id = :user_id"),
+            text(
+                "SELECT id, user_id, recipient_name, phone, division, district, "
+                "upazila, area, address_line, postal_code, is_default, created_at "
+                "FROM addresses WHERE id = :address_id AND user_id = :user_id"
+            ),
             {"address_id": address_id, "user_id": user.id},
         )
         row = result.mappings().first()
@@ -228,17 +190,19 @@ class UsersService:
         # If setting as default, unset other defaults
         if update_data.get("is_default"):
             await self.db.execute(
-                update("addresses")
-                .where("user_id = :user_id")
-                .values(is_default=False),
+                text(
+                    "UPDATE addresses SET is_default = FALSE WHERE user_id = :user_id"
+                ),
                 {"user_id": user.id},
             )
 
+        set_clause = ", ".join(f"{key} = :{key}" for key in update_data)
         await self.db.execute(
-            update("addresses")
-            .where("id = :address_id AND user_id = :user_id")
-            .values(**update_data),
-            {"address_id": address_id, "user_id": user.id},
+            text(
+                f"UPDATE addresses SET {set_clause} "
+                "WHERE id = :address_id AND user_id = :user_id"
+            ),
+            {"address_id": address_id, "user_id": user.id, **update_data},
         )
         await self.db.commit()
 
@@ -247,9 +211,11 @@ class UsersService:
     async def delete_address(self, user: User, address_id: str) -> None:
         """Delete an address (must belong to user)."""
         result = await self.db.execute(
-            delete("addresses")
-            .where("id = :address_id AND user_id = :user_id")
-            .returning("id"),
+            text(
+                "DELETE FROM addresses "
+                "WHERE id = :address_id AND user_id = :user_id "
+                "RETURNING id"
+            ),
             {"address_id": address_id, "user_id": user.id},
         )
         if not result.scalar_one_or_none():

@@ -213,7 +213,7 @@ flowchart LR
 | **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ৪ | ১০০% | ✅ COMPLETED |
 | **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ৪ | ১০০% | ✅ COMPLETED |
 | **MILESTONE 3** | **Concurrency-Safe Inventory & Ledger** | Milestone 2 | ৫টি | ৫ | ১০০% | ✅ COMPLETED |
-| **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ০ | ০% | 📋 Planned |
+| **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ৪ | ১০০% | ✅ COMPLETED |
 | **MILESTONE 5** | **Payment Adapters & Webhook Engine** | Milestone 4 | ৫টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 6** | **Storefronts, Admin & Production Launch** | Milestone 5 | ৫টি | ০ | ০% | 📋 Planned |
 | **সর্বমোট** | **সম্পূর্ণ প্রকল্প বাস্তবায়ন (Full Platform)** | — | **২৭টি** | **০** | **০%** | **ইঞ্জিনিয়ারিং শুরু হচ্ছে** |
@@ -305,19 +305,48 @@ flowchart LR
 
 ### 🔲 MILESTONE 4: Shared Cart & Unified Split-Order Checkout Engine
 
-- [ ] **M4.0: Main Milestone 4 — Shared Cart, Split Orders & Checkout Engine** `[Status: PLANNED]`
-  * [ ] **M4.1: Multi-Store Shared Cart** `[Status: PENDING]`
+- [x] **M4.0: Main Milestone 4 — Shared Cart, Split Orders & COD Engine** `[Status: COMPLETED]`
+  * [x] **M4.1: Multi-Store Shared Cart** `[Status: COMPLETED]`
     * *Scope*: Multi-store cart items, quantity update, real-time stock/active checks
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M4.2: Server-Side Checkout Calculation** `[Status: PENDING]`
+    * *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+    * **Detailed Checklist:**
+      * [x] Cart module rewritten with SQLAlchemy 2.0 Core + Pydantic v2
+      * [x] Guest cart support (session_id) and authenticated cart (user_id)
+      * [x] Guest-to-user cart merge on login
+      * [x] Add/update/remove item operations with stock validation
+      * [x] Server-side checkout preview with PricingService integration
+      * [x] Live stock validation via InventoryService
+  * [x] **M4.2: Server-Side Checkout Calculation** `[Status: COMPLETED]`
     * *Scope*: Server-side total calculation, owner-approved flat delivery fee application
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M4.3: Split Order Transaction Engine** `[Status: PENDING]`
+    * *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+    * **Detailed Checklist:**
+      * [x] Server-side pricing via PricingService.calculate_price()
+      * [x] Flat delivery fee: Dhaka Metro 70 BDT, outside Dhaka 120 BDT (DEC-OWN-003)
+      * [x] Grand total = (Subtotal - Discount) + Delivery Total
+      * [x] Coupon code support with promotion validation
+  * [x] **M4.3: Split Order Transaction Engine** `[Status: COMPLETED]`
     * *Scope*: Atomic transaction: Parent Order (`orders`) -> Split Store Orders (`store_orders`) -> Item snapshots
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  * [ ] **M4.4: COD Fraud Prevention & Verification** `[Status: PENDING]`
+    * *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+    * **Detailed Checklist:**
+      * [x] Unique order number generation (AB-YYYYMMDD-XXXX)
+      * [x] Parent order creation with subtotal, discount, delivery, grand total
+      * [x] Delivery address snapshot (order_addresses)
+      * [x] Store order splitting (store_orders per store)
+      * [x] Immutable item snapshots (order_items) with name, SKU, variant JSONB
+      * [x] 15-min atomic stock reservation (inventory_reservations FOR UPDATE)
+      * [x] Promotion redemption record (promotion_redemptions)
+      * [x] Status history (order_status_history)
+      * [x] Cart conversion (carts.status = 'converted')
+  * [x] **M4.4: COD Fraud Prevention & Verification** `[Status: COMPLETED]`
     * *Scope*: 4-digit SMS OTP verification on COD orders before confirming to mitigate RTO risk
-    * *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+    * *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+    * **Detailed Checklist:**
+      * [x] 4-digit OTP generation on COD order placement
+      * [x] 5-minute OTP expiry with 3-attempt limit
+      * [x] OTP verification endpoint (POST /api/v1/orders/{order_id}/verify-cod)
+      * [x] Order status transition: pending -> confirmed on successful verification
+      * [x] Store orders status update to confirmed
+      * [x] Status history entry for COD verification
 
 ---
 

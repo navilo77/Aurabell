@@ -16,10 +16,11 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
 from app.core.database import async_session_factory
+from app.modules.cart.router import router as cart_router
+from app.modules.orders.router import router as orders_router
 from app.modules.auth.router import router as auth_router
 from app.modules.inventory.router import admin_router as inventory_admin_router
 from app.modules.inventory.router import public_router as inventory_public_router
-from app.modules.inventory.service import InventoryService
 from app.modules.pricing.router import router as pricing_router
 from app.modules.pricing.service import PricingError
 from app.modules.categories.router import admin_router as categories_admin_router
@@ -118,6 +119,8 @@ async def add_hsts_header(request, call_next):
 # ─── API Routes ─────────────────────────────────────────────────────────────
 
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(cart_router, prefix="/api/v1")
+app.include_router(orders_router, prefix="/api/v1")
 app.include_router(pricing_router, prefix="/api/v1")
 app.include_router(inventory_admin_router, prefix="/api/v1")
 app.include_router(inventory_public_router, prefix="/api/v1")

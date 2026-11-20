@@ -13,7 +13,7 @@ from typing import Callable
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -104,15 +104,12 @@ async def get_current_user(
     # Fetch user roles from database
     from app.core.config import settings
 
-    # Import models here to avoid circular imports
-    from sqlalchemy import text
-
     # Query profiles + user_roles + roles
     query = text("""
         SELECT p.id, p.email, r.name as role_name
         FROM public.profiles p
-        JOIN public.user_roles ur ON ur.user_id = p.id
-        JOIN public.roles r ON r.id = ur.role_id
+        LEFT JOIN public.user_roles ur ON ur.user_id = p.id
+        LEFT JOIN public.roles r ON r.id = ur.role_id
         WHERE p.id = :user_id
     """)
 
@@ -126,7 +123,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    roles = [row.role_name for row in rows]
+    roles = [row.role_name for row in rows if row.role_name is not None]
     user = User(id=user_id, email=email or rows[0].email, roles=roles)
 
     # Cache in request state

@@ -30,15 +30,26 @@ _jwks_fetched_at: float = 0.0
 _JWKS_TTL_SECONDS = 3600  # 1 hour
 
 
+def _get_supabase_base_url() -> str:
+    """Return the configured Supabase base URL without trailing slash.
+
+    Raises:
+        JWKSFetchError: If SUPABASE_URL is not configured.
+    """
+    if not settings.SUPABASE_URL:
+        raise JWKSFetchError(message="SUPABASE_URL is not configured")
+    return settings.SUPABASE_URL.rstrip("/")
+
+
 def _get_jwks_url() -> str:
     """Construct JWKS endpoint URL from Supabase URL."""
-    base = settings.SUPABASE_URL.rstrip("/")
+    base = _get_supabase_base_url()
     return f"{base}/auth/v1/.well-known/jwks.json"
 
 
 def _get_expected_issuer() -> str:
     """Construct expected issuer from Supabase URL."""
-    base = settings.SUPABASE_URL.rstrip("/")
+    base = _get_supabase_base_url()
     return f"{base}/auth/v1"
 
 
