@@ -216,7 +216,7 @@ flowchart LR
 | **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ৪ | ১০০% | ✅ COMPLETED |
 | **MILESTONE 5** | **Payment Adapters & Webhook Engine** | Milestone 4 | ৫টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 6** | **Storefronts, Admin & Production Launch** | Milestone 5 | ৫টি | ০ | ০% | 📋 Planned |
-| **সর্বমোট** | **সম্পূর্ণ প্রকল্প বাস্তবায়ন (Full Platform)** | — | **২৭টি** | **০** | **০%** | **ইঞ্জিনিয়ারিং শুরু হচ্ছে** |
+| **সর্বমোট** | **সম্পূর্ণ প্রকল্প বাস্তবায়ন (Full Platform)** | — | **২৭টি** | **১৭** | **৬৩%** | **মাইলস্টোন ১-৪ সম্পূর্ণ** |
 
 ---
 
@@ -347,6 +347,23 @@ flowchart LR
       * [x] Order status transition: pending -> confirmed on successful verification
       * [x] Store orders status update to confirmed
       * [x] Status history entry for COD verification
+
+---
+## 🔐 CROSS-STORE SECURITY & HARDENING `[Status: 100% COMPLETE]`
+
+> **লক্ষ্য:** মাল্টি-স্টোর এনভায়রনমেন্টে ক্রস-স্টোর ডাটা লিক পরিহাস, টেনেন্ট আইসোলেশন এবং ডাটাবেজ লেভেল নিরাপত্তা দৃঢ়করণ।
+
+### কাজের উদ্দেশ্য
+স িল্ট-স্টোর ই-কমার্স প্ল্যাটফর্মে একটি স্টোরের কাস্টমার বা অ্যাডমিন অন্য স্টোরের ডাটা অ্যাক্সেস না পারে তা নিশ্চিত করা। এছাড়াও IDOR (Insecure Direct Object Reference) ভালনেবিলিটি দূর করা এবং RLS (Row Level Security) পলিসি আপডেট করা।
+
+### সম্পন্ন fielen
+
+* **IDOR Fixes**: کرস-স্টোর রিসোর্স অ্যাক্সেসে সার্ভার-সাইড স্টোর স্কোপিং। অর্ডার, কার্ট, ইনভেন্টরি ও প্রোডাক্ট রিসোর্সে authenticate করা ইউজারের স্টোর আইডি যাচাই করা।
+* **Store-Scoped Auth Model**: `user_roles` টেবিলে `store_id` FK সংযোজন। গ্লোবাল ও স্টোর-স্কোপড রোলের মধ্যে sterk ripLE। `require_role()` ডিপেন্ডেন্সিতে স্টোর স্কোপ চেক সংযোজন।
+* **Updated RLS Policies**: সকল টেবিলে `auth.uid()` ভিত্তিক রো লেভেল সিকিউরিটি পলিসি আপডেট। স্টোর 매নেজার কেবল নিজ স্টোরের ডাটা অ্যাক্সেস করতে পারবে। ক্রস-স্টোর কোয়েরি ডাটাবেজ লেভেলে ব্লক হবে।
+* **Tenant Isolation Verification**: প্রতিটি API এন্ডপয়েন্টে স্টোর আইডি ভ্যালিডেশন। অনুমোদনहीন ক্রস-স্টোর অ্যাক্সেসের জন্য 403 ফোরবিডেন রেসপন্স।
+
+**Completion Date**: `2026-11-20` | **Verified By**: `Kilo Code` | **Commit**: `2e462e0 feat(security): enforce cross-store tenant isolation & RLS policies`
 
 ---
 
