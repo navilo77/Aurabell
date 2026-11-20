@@ -48,6 +48,52 @@ class CartService:
         return str(row["id"])
 
     # ------------------------------------------------------------------
+    # Ownership enforcement (IDOR prevention)
+    # ------------------------------------------------------------------
+
+    async def _assert_cart_access(
+        self,
+        cart_id: str,
+        user_id: str | None = None,
+        session_id: str | None = None,
+    ) -> None:
+        """Ensure the caller owns the cart.
+
+        A cart is accessible when:
+        - It is bound to ``user_id`` and that matches the authenticated user, or
+        - It is a guest cart bound to ``session_id`` and that matches the
+          caller-provided guest session.
+
+        Raises 404 (not 403) when access is denied so the endpoint does not
+        leak the existence of other users' carts.
+        """
+        result = await self.db.execute(
+            text("SELECT user_id, session_id FROM carts WHERE id = :cart_id"),
+            {"cart_id": cart_id},
+        )
+        row = result.mappings().first()
+        if not row:
+            raise AuthError(
+                message="Cart not found",
+                code="CART_NOT_FOUND",
+                status_code=404,
+            )
+
+        owner_user = str(row["user_id"]) if row["user_id"] else None
+        owner_session = str(row["session_id"]) if row["session_id"] else None
+
+        if user_id and owner_user == str(user_id):
+            return
+        if session_id and owner_session and owner_session == str(session_id):
+            return
+
+        raise AuthError(
+            message="Cart not found",
+            code="CART_NOT_FOUND",
+            status_code=404,
+        )
+
+    # ------------------------------------------------------------------
     # Cart discovery / creation
     # ------------------------------------------------------------------
 
@@ -216,20 +262,16 @@ class CartService:
         cart_id: str,
         variant_id: str,
         quantity: int = 1,
+        user_id: str | None = None,
+        session_id: str | None = None,
     ) -> CartItemRead:
         """Add a product variant to the cart.
 
         Validates that the variant exists, is active, and has sufficient stock.
         If the variant already exists in the cart, quantity is increased.
         """
-        # Verify cart exists
-        cart_result = await self.db.execute(
-            text("SELECT id, status FROM carts WHERE id = :cart_id"),
-            {"cart_id": cart_id},
-        )
-        cart_row = cart_result.mappings().first()
-        if not cart_row:
-            raise AuthError(message="Cart not found", code="CART_NOT_FOUND", status_code=404)
+        # Verify cart exists AND caller owns it (IDOR prevention)
+        await self._assert_cart_access(cart_id, user_id=user_id, session_id=session_id)
 
         # Verify variant exists and is active
         variant_result = await self.db.execute(
@@ -325,8 +367,15 @@ class CartService:
             updated_at=str(row["updated_at"]) if row["updated_at"] else None,
         )
 
-    async def remove_item(self, cart_id: str, variant_id: str) -> bool:
+    async def remove_item(
+        self,
+        cart_id: str,
+        variant_id: str,
+        user_id: str | None = None,
+        session_id: str | None = None,
+    ) -> bool:
         """Remove a cart item entirely. Returns True if a row was deleted."""
+        await self._assert_cart_access(cart_id, user_id=user_id, session_id=session_id)
         result = await self.db.execute(
             text(
                 "DELETE FROM cart_items WHERE cart_id = :cart_id AND variant_id = :variant_id"
@@ -340,13 +389,16 @@ class CartService:
         cart_id: str,
         variant_id: str,
         quantity: int,
+        user_id: str | None = None,
+        session_id: str | None = None,
     ) -> CartItemRead:
         """Update a cart item's quantity.
 
         If quantity is 0 or less, the item is removed.
         """
+        await self._assert_cart_access(cart_id, user_id=user_id, session_id=session_id)
         if quantity <= 0:
-            await self.remove_item(cart_id, variant_id)
+            await self.remove_item(cart_id, variant_id, user_id=user_id, session_id=session_id)
             raise AuthError(
                 message="Quantity updated to <= 0; item removed",
                 code="ITEM_REMOVED",
@@ -392,11 +444,15 @@ class CartService:
         cart_id: str,
         coupon_code: str | None = None,
         district: str | None = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
     ) -> CheckoutPreview:
         """Calculate a checkout preview for a cart with real server-side pricing.
 
         Returns per-store breakdown and totals using PricingService for validation.
         """
+        await self._assert_cart_access(cart_id, user_id=user_id, session_id=session_id)
+
         # Get cart items with variant and store information
         stmt = text(
             """
@@ -508,8 +564,14 @@ class CartService:
     # Cart listing
     # ------------------------------------------------------------------
 
-    async def list_cart_items(self, cart_id: str) -> list[CartItemRead]:
+    async def list_cart_items(
+        self,
+        cart_id: str,
+        user_id: str | None = None,
+        session_id: str | None = None,
+    ) -> list[CartItemRead]:
         """Return all items in a cart with stock validation."""
+        await self._assert_cart_access(cart_id, user_id=user_id, session_id=session_id)
         stmt = text(
             """
             SELECT ci.id, ci.cart_id, ci.variant_id, ci.quantity,

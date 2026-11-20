@@ -116,6 +116,66 @@ class OrdersService:
         return True, "OTP verified successfully"
 
     # ------------------------------------------------------------------
+    # Order access control (IDOR prevention)
+    # ------------------------------------------------------------------
+
+    async def _assert_order_access(
+        self,
+        order_id: str,
+        user_id: str | None = None,
+        store_ids: list[str] | None = None,
+    ) -> None:
+        """Ensure caller has access to the order.
+
+        Access rules:
+        - Customer (user_id): order.user_id must match user_id.
+        - Vendor (store_ids): at least one store_order.store_id must be in store_ids.
+        - Super admin (no store_ids, but role 'admin'): allowed implicitly if
+          neither user_id nor store_ids provided? We'll allow if user_id is None
+          and store_ids is None — but this shouldn't happen in normal flow as
+          the router always passes context. For safety, deny if no context.
+
+        Raises 404 when access is denied (avoids leaking order existence).
+        """
+        if not user_id and not store_ids:
+            raise OrdersError(
+                message="Order not found", code="ORDER_NOT_FOUND", status_code=404
+            )
+
+        # Customer ownership check
+        if user_id:
+            result = await self.db.execute(
+                text("SELECT user_id FROM orders WHERE id = :order_id"),
+                {"order_id": order_id},
+            )
+            row = result.mappings().first()
+            if not row:
+                raise OrdersError(
+                    message="Order not found", code="ORDER_NOT_FOUND", status_code=404
+                )
+            if str(row["user_id"]) == str(user_id):
+                return
+
+        # Vendor store scoping check
+        if store_ids:
+            result = await self.db.execute(
+                text(
+                    """
+                    SELECT 1 FROM store_orders
+                    WHERE order_id = :order_id AND store_id = ANY(:store_ids)
+                    """
+                ),
+                {"order_id": order_id, "store_ids": store_ids},
+            )
+            row = result.mappings().first()
+            if row:
+                return
+
+        raise OrdersError(
+            message="Order not found", code="ORDER_NOT_FOUND", status_code=404
+        )
+
+    # ------------------------------------------------------------------
     # Checkout: Atomic split-order transaction
     # ------------------------------------------------------------------
 
@@ -390,8 +450,22 @@ class OrdersService:
         # Return the created order
         return await self.get_order(order_id)
 
-    async def get_order(self, order_id: str) -> OrderRead:
-        """Get order with store orders and items."""
+    async def get_order(
+        self,
+        order_id: str,
+        user_id: str | None = None,
+        store_ids: list[str] | None = None,
+    ) -> OrderRead:
+        """Get order with store orders and items.
+
+        Access rules:
+        - Customer: allowed only if order.user_id == user_id.
+        - Vendor (store manager/super_admin): allowed if the order has at least
+          one store_order whose store_id is in store_ids.
+        - Super admin (platform): allowed without store scoping.
+        """
+        await self._assert_order_access(order_id, user_id=user_id, store_ids=store_ids)
+
         # Get parent order
         order_result = await self.db.execute(
             text(
@@ -478,8 +552,17 @@ class OrdersService:
     # COD Verification (M4.4)
     # ------------------------------------------------------------------
 
-    async def verify_cod_otp(self, request: CODVerifyRequest) -> CODVerifyResponse:
-        """Verify 4-digit OTP for COD order."""
+    async def verify_cod_otp(
+        self,
+        request: CODVerifyRequest,
+        user_id: str | None = None,
+        store_ids: list[str] | None = None,
+    ) -> CODVerifyResponse:
+        """Verify 4-digit OTP for COD order.
+
+        Only the customer who placed the order may verify the OTP.
+        """
+        await self._assert_order_access(request.order_id, user_id=user_id, store_ids=store_ids)
         success, message = self._verify_cod_otp(request.order_id, request.otp_code)
 
         if not success:

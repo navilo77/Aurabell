@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, User
 from app.core.database import get_db
 from app.core.exceptions import AuthError
 from app.modules.orders.schema import (
@@ -28,6 +28,17 @@ def get_orders_service(db: AsyncSession = Depends(get_db)) -> OrdersService:
     return OrdersService(db)
 
 
+def _user_context(user: User) -> tuple[str | None, list[str] | None]:
+    """Derive (user_id, store_ids) for ownership enforcement.
+
+    - Customer: (user_id, None)
+    - Store manager / super_admin: (user_id, store_ids)
+    """
+    if "customer" in user.roles:
+        return user.id, None
+    return user.id, user.store_ids or None
+
+
 # ─── Order Placement ────────────────────────────────────────────────────────────
 
 
@@ -40,7 +51,7 @@ def get_orders_service(db: AsyncSession = Depends(get_db)) -> OrdersService:
 async def place_order(
     data: OrderCreate,
     service: OrdersService = Depends(get_orders_service),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """Place an order atomically.
 
@@ -55,9 +66,10 @@ async def place_order(
 
     If payment_method is 'cod', sends 4-digit SMS OTP for verification.
     """
-    user_id = str(user["id"])
+    user_id = str(user.id)
+    user_id_ctx, _store_ids = _user_context(user)
     try:
-        return await service.place_order(data, user_id)
+        return await service.place_order(data, user_id_ctx)
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -77,7 +89,7 @@ async def verify_cod_otp(
     request: CODVerifyRequest,
     order_id: str = Path(..., description="Order UUID"),
     service: OrdersService = Depends(get_orders_service),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """Verify 4-digit OTP for COD order.
 
@@ -88,9 +100,11 @@ async def verify_cod_otp(
 
     Maximum 3 attempts, 5-minute expiry.
     """
-    user_id = str(user["id"])
+    user_id, store_ids = _user_context(user)
     try:
-        return await service.verify_cod_otp(request)
+        return await service.verify_cod_otp(
+            request, user_id=user_id, store_ids=store_ids
+        )
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -109,11 +123,14 @@ async def verify_cod_otp(
 async def get_order(
     order_id: str = Path(..., description="Order UUID"),
     service: OrdersService = Depends(get_orders_service),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """Get order details with store orders and items."""
+    user_id, store_ids = _user_context(user)
     try:
-        return await service.get_order(order_id)
+        return await service.get_order(
+            order_id, user_id=user_id, store_ids=store_ids
+        )
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -128,10 +145,10 @@ async def get_order(
 )
 async def list_orders(
     service: OrdersService = Depends(get_orders_service),
-    user: dict = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     """List all orders for the current user."""
-    user_id = str(user["id"])
+    user_id = str(user.id)
     # TODO: Implement pagination and status filtering
     result = await service.db.execute(
         text(

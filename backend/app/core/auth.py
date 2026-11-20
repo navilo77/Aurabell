@@ -8,7 +8,7 @@ Provides:
 from __future__ import annotations
 
 from collections.abc import Awaitable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 from fastapi import Depends, HTTPException, Request, status
@@ -35,17 +35,21 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 @dataclass(frozen=True, slots=True)
 class User:
-    """Authenticated user with roles.
+    """Authenticated user with roles and store scoping.
 
     Attributes:
         id: User UUID (from JWT `sub` claim)
         email: User email (from JWT `email` claim or profile)
         roles: List of role names (e.g., ["store_manager", "customer"])
+        store_ids: List of store UUIDs this user is associated with via
+            ``user_roles.store_id``. Empty for customers (no store scope),
+            populated for store managers and super admins.
     """
 
     id: str
     email: str
     roles: list[str]
+    store_ids: list[str] = field(default_factory=list)
 
 
 # ─── get_current_user Dependency ────────────────────────────────────────────
@@ -106,7 +110,7 @@ async def get_current_user(
 
     # Query profiles + user_roles + roles
     query = text("""
-        SELECT p.id, p.email, r.name as role_name
+        SELECT p.id, p.email, r.name as role_name, ur.store_id
         FROM public.profiles p
         LEFT JOIN public.user_roles ur ON ur.user_id = p.id
         LEFT JOIN public.roles r ON r.id = ur.role_id
@@ -124,7 +128,9 @@ async def get_current_user(
         )
 
     roles = [row.role_name for row in rows if row.role_name is not None]
-    user = User(id=user_id, email=email or rows[0].email, roles=roles)
+    # Collect store_ids from user_roles (for store_manager role scoping)
+    store_ids = [str(row.store_id) for row in rows if row.store_id is not None]
+    user = User(id=user_id, email=email or rows[0].email, roles=roles, store_ids=store_ids)
 
     # Cache in request state
     request.state.user = user

@@ -84,10 +84,19 @@ async def merge_guest_cart(
 )
 async def list_cart_items(
     cart_id: str = Path(..., description="Cart UUID"),
+    session_id: str | None = Query(None, description="Guest session ID"),
     service: CartService = Depends(get_cart_service),
+    user: dict | None = Depends(get_optional_user),
 ):
-    """Return all items in a cart with stock status."""
-    return await service.list_cart_items(cart_id)
+    """Return all items in a cart with stock status.
+
+    Authenticated users can only read their own carts. Guest sessions can only
+    read their own guest carts via ``session_id``.
+    """
+    user_id = str(user["id"]) if user else None
+    return await service.list_cart_items(
+        cart_id=cart_id, user_id=user_id, session_id=session_id
+    )
 
 
 @router.post(
@@ -99,15 +108,24 @@ async def list_cart_items(
 async def add_item(
     cart_id: str = Path(..., description="Cart UUID"),
     data: CartItemCreate = ...,
+    session_id: str | None = Query(None, description="Guest session ID"),
     service: CartService = Depends(get_cart_service),
+    user: dict | None = Depends(get_optional_user),
 ):
     """Add a product variant to the cart.
 
     Validates variant exists, is active, and product is active.
     If item already in cart, quantity is increased.
     """
+    user_id = str(user["id"]) if user else None
     try:
-        return await service.add_item(cart_id, data.variant_id, data.quantity)
+        return await service.add_item(
+            cart_id,
+            data.variant_id,
+            data.quantity,
+            user_id=user_id,
+            session_id=session_id,
+        )
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -124,14 +142,23 @@ async def update_item_quantity(
     cart_id: str = Path(..., description="Cart UUID"),
     variant_id: str = Path(..., description="Product variant UUID"),
     data: CartItemCreate = ...,
+    session_id: str | None = Query(None, description="Guest session ID"),
     service: CartService = Depends(get_cart_service),
+    user: dict | None = Depends(get_optional_user),
 ):
     """Update a cart item's quantity.
 
     If quantity is 0 or less, the item is removed.
     """
+    user_id = str(user["id"]) if user else None
     try:
-        return await service.update_item_quantity(cart_id, variant_id, data.quantity)
+        return await service.update_item_quantity(
+            cart_id,
+            variant_id,
+            data.quantity,
+            user_id=user_id,
+            session_id=session_id,
+        )
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -147,10 +174,15 @@ async def update_item_quantity(
 async def remove_item(
     cart_id: str = Path(..., description="Cart UUID"),
     variant_id: str = Path(..., description="Product variant UUID"),
+    session_id: str | None = Query(None, description="Guest session ID"),
     service: CartService = Depends(get_cart_service),
+    user: dict | None = Depends(get_optional_user),
 ):
     """Remove a cart item entirely."""
-    deleted = await service.remove_item(cart_id, variant_id)
+    user_id = str(user["id"]) if user else None
+    deleted = await service.remove_item(
+        cart_id, variant_id, user_id=user_id, session_id=session_id
+    )
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -171,18 +203,23 @@ async def checkout_preview(
     cart_id: str = Path(..., description="Cart UUID"),
     coupon_code: str | None = Query(None, description="Optional coupon code"),
     district: str | None = Query(None, description="District for delivery fee calc"),
+    session_id: str | None = Query(None, description="Guest session ID"),
     service: CartService = Depends(get_cart_service),
+    user: dict | None = Depends(get_optional_user),
 ):
     """Calculate a checkout preview using server-side PricingService.
 
     Returns per-store breakdown and grand totals with flat delivery fee.
     Delivery fee: Dhaka Metro ৳70, outside Dhaka ৳120 (DEC-OWN-003).
     """
+    user_id = str(user["id"]) if user else None
     try:
         return await service.checkout_preview(
             cart_id,
             coupon_code=coupon_code,
             district=district,
+            user_id=user_id,
+            session_id=session_id,
         )
     except AuthError as e:
         raise HTTPException(
