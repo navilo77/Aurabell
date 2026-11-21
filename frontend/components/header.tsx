@@ -13,7 +13,8 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react";
-import { clearAccessToken, getAccessToken } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 
 export function Header({ title }: { title?: string }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -27,8 +28,14 @@ export function Header({ title }: { title?: string }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleLogout = () => {
-    clearAccessToken();
+  const handleLogout = async () => {
+    // Best-effort server-side session clearing; clear UI state regardless
+    try {
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore - frontend state is cleared either way
+    }
+    setIsLoggedIn(false);
     window.location.href = "/login";
   };
 

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { apiFetch } from "@/lib/api";
-import { setTokenResponse, getUserRoles, redirectByRole } from "@/lib/auth";
+import { redirectByRole } from "@/lib/auth";
+import { UserRole } from "@/lib/types";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const token = await apiFetch<{
+      await apiFetch<{
         access_token: string;
         refresh_token: string;
         token_type: string;
@@ -24,9 +25,14 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      setTokenResponse(token);
-      const roles = getUserRoles();
-      redirectByRole(roles);
+      // Backend sets HttpOnly cookies; fetch authoritative user state (roles + store_ids)
+      const user = await apiFetch<{
+        id: string;
+        email: string;
+        roles: UserRole[];
+        store_ids: string[];
+      }>("/users/me");
+      redirectByRole(user.roles);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
