@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-from app.core.auth import get_current_user
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from app.core.exceptions import AuthError
 from app.modules.auth.schema import (
     AuthErrorResponse,
@@ -19,8 +16,6 @@ from app.modules.auth.schema import (
 from app.modules.auth.service import get_auth_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @router.post(
@@ -147,13 +142,21 @@ async def refresh_token(
     summary="Sign out current user",
 )
 async def logout(
+    request: Request,
     response: Response,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    user=Depends(get_current_user),
 ) -> Response:
-    """Sign out the current user (revokes session server-side)."""
-    if credentials:
-        await get_auth_service().logout(credentials.credentials)
+    """Sign out the current user (revokes session server-side).
+
+    Safe to call even when no valid session exists. Always clears both
+    authentication cookies. Best-effort server-side session invalidation
+    is attempted when an access token cookie is present.
+    """
+    token = request.cookies.get("aura_access_token")
+    if isinstance(token, str) and token:
+        try:
+            await get_auth_service().logout(token)
+        except Exception:
+            pass
     response.delete_cookie("aura_access_token", path="/")
     response.delete_cookie("aura_refresh_token", path="/")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
