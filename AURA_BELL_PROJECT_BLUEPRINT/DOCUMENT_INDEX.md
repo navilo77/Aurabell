@@ -3,10 +3,10 @@ id: DOC-AUR-001
 title: Aura Bell — Document Master Index
 type: foundation
 status: confirmed
-version: 6.0
+version: 6.1
 language: Bangla with English technical terms
 source: AB-PV-001, AB-SA-001, AB-DS-001, AB-DM-001
-last_updated: 2026-11-08
+last_updated: 2026-11-20
 ---
 
 # Aura Bell — Document Master Index (নথিপত্রের মহাপঞ্জিকা)
@@ -70,12 +70,18 @@ last_updated: 2026-11-08
 | `DOC-AUR-049` | `03_PRODUCT_REQUIREMENTS/SHIPPING_DELIVERY_PRD.md` | Aura Bell — Shipping, Delivery & Couriers PRD | Prd | Confirmed |
 | `DOC-AUR-043` | `03_PRODUCT_REQUIREMENTS/STORE_PRD.md` | Aura Bell — Multi-Store Engine PRD | Prd | Confirmed |
 
-## ৬. 04_SYSTEM_ARCHITECTURE (সিস্টেম ও সাব-সিস্টেম আর্কিটেকচার) (16টি নথি)
+## ৬. 04_SYSTEM_ARCHITECTURE (সিস্টেম ও সাব-সিস্টেম আর্কিটেকচার) (22টি নথি)
 
 | Document ID | ফাইল পাথ | শিরোনাম | ধরণ | স্থিতি |
 |---|---|---|---|---|
 | `DOC-AUR-065` | `04_SYSTEM_ARCHITECTURE/API_ARCHITECTURE.md` | Aura Bell — API Architecture & Versioning Strategy | Technical | Confirmed |
 | `DOC-AUR-066` | `04_SYSTEM_ARCHITECTURE/ARCHITECTURE_DECISION_RECORDS.md` | Aura Bell — Architectural Decision Records (ADRs) | Technical | Confirmed |
+| `DOC-AUR-067` | `04_SYSTEM_ARCHITECTURE/LOCAL_FIRST_SYNC_SPEC.md` | Aura Bell — Local-First Sync Specification | Technical | Draft |
+| `DOC-AUR-068` | `04_SYSTEM_ARCHITECTURE/OFFLINE_STRATEGY.md` | Aura Bell — Offline Strategy Specification | Technical | Draft |
+| `DOC-AUR-069` | `04_SYSTEM_ARCHITECTURE/IMPLEMENTATION_ROADMAP.md` | Aura Bell — Implementation Roadmap (Hybrid Local-First) | Technical | Approved |
+| `DOC-AUR-070` | `04_SYSTEM_ARCHITECTURE/DECISION_PACKAGE_PHASE1_PHASE2.md` | Aura Bell — Decision Package: Phase 1/2 Blocking Architecture Decisions | Technical | Draft |
+| `DOC-AUR-071` | `04_SYSTEM_ARCHITECTURE/DECISION_PACKAGE_MUTATION_SYNC_CORE.md` | Aura Bell — Decision Package: Mutation/Sync Architecture Core Decisions | Technical | Draft |
+| `DOC-AUR-072` | `04_SYSTEM_ARCHITECTURE/IMPLEMENTATION_TASK_BREAKDOWN.md` | Aura Bell — Implementation Task Breakdown: Phase 1 & Phase 2 | Technical | Draft |
 | `DOC-AUR-063` | `04_SYSTEM_ARCHITECTURE/BACKEND_ARCHITECTURE.md` | Aura Bell — Backend Architecture (FastAPI & SQLAlchemy) | Technical | Confirmed |
 | `DOC-AUR-064` | `04_SYSTEM_ARCHITECTURE/DATABASE_ARCHITECTURE.md` | Aura Bell — Database Architecture & Concurrency Strategy | Technical | Confirmed |
 | `DOC-AUR-062` | `04_SYSTEM_ARCHITECTURE/FRONTEND_ARCHITECTURE.md` | Aura Bell — Frontend Architecture (Next.js & TypeScript) | Technical | Confirmed |
@@ -201,7 +207,7 @@ last_updated: 2026-11-08
 
 ## সারসংক্ষেপ ও স্বাস্থ্য সূচক (Health Summary)
 
-- **মোট অনুমোদিত ও সক্রিয় নথি**: 100টি
-- **ক্যানোনিকাল ফোল্ডার সংখ্যা**: ১৪টি (00 থেকে 13)
+- **মোট অনুমোদিত ও সক্রিয় নথি**: 106টি
+- **ক্যানোনিকাল ফোল্ডার সংখ্যা**: ১৪টি (০০ থেকে ১৩)
 - **পূর্ববর্তী সিদ্ধান্তের অমিল / কনফ্লিক্ট**: ০টি (১০০% নিরসনকৃত)
 - **বাস্তবায়ন স্থিতি**: সম্পূর্ণ ইঞ্জিনিয়ারিং-রেডি (Ready for Implementation)
