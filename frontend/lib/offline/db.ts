@@ -107,3 +107,12 @@ export async function removeMutation(id: string) {
   if (!db) return;
   await db.delete("mutations", id);
 }
+
+export async function purgeUserMutations(userId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const records = await db.getAllFromIndex("mutations", "user_id", userId);
+  for (const record of records) {
+    await db.delete("mutations", record.id);
+  }
+}

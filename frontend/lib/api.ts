@@ -32,7 +32,9 @@ async function fetchRaw(path: string, options: RequestInit = {}): Promise<Respon
 async function parseResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.detail || errorBody.message || `API error: ${res.status}`);
+    const error = new Error(errorBody.detail || errorBody.message || `API error: ${res.status}`);
+    (error as { status?: number }).status = res.status;
+    throw error;
   }
 
   if (res.status === 204) {
