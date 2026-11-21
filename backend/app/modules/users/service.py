@@ -47,6 +47,8 @@ class UsersService:
             phone=row["phone"],
             avatar_url=row["avatar_url"],
             status=row["status"],
+            roles=user.roles,
+            store_ids=user.store_ids,
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

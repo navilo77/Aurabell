@@ -17,6 +17,8 @@ class ProfileRead(BaseModel):
     phone: str | None
     avatar_url: str | None
     status: str
+    roles: list[str]
+    store_ids: list[str]
     created_at: datetime
     updated_at: datetime
 
