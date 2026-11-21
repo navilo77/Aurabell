@@ -48,7 +48,7 @@ class OTPVerify(BaseModel):
 class RefreshTokenRequest(BaseModel):
     """Refresh token request."""
 
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class AuthErrorResponse(BaseModel):

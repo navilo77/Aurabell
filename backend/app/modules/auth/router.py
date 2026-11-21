@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.auth import get_current_user
@@ -111,10 +111,29 @@ async def verify_otp(data: OTPVerify, response: Response) -> Token:
     },
     summary="Refresh access token",
 )
-async def refresh_token(data: RefreshTokenRequest, response: Response) -> Token:
-    """Get new access token using refresh token."""
+async def refresh_token(
+    request: Request,
+    data: RefreshTokenRequest,
+    response: Response,
+) -> Token:
+    """Get new access token using refresh token.
+
+    Preferred source: HttpOnly ``aura_refresh_token`` cookie.
+    Request body is a temporary migration fallback.
+    """
+    # Preferred source: HttpOnly cookie; body as migration fallback
+    refresh_token = request.cookies.get("aura_refresh_token")
+    if not isinstance(refresh_token, str):
+        refresh_token = data.refresh_token
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"detail": "Missing refresh token", "code": "MISSING_REFRESH_TOKEN"},
+        )
     try:
-        token = await get_auth_service().refresh_token(data)
+        token = await get_auth_service().refresh_token(
+            RefreshTokenRequest(refresh_token=refresh_token)
+        )
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
     response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
