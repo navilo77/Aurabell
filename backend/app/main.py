@@ -16,6 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
 from app.core.database import async_session_factory
+from app.core.idempotency import IdempotencyMiddleware
 from app.modules.cart.router import router as cart_router
 from app.modules.orders.router import router as orders_router
 from app.modules.auth.router import router as auth_router
@@ -107,6 +108,9 @@ app.add_middleware(
     same_site="lax",
     https_only=False,  # Set True in production behind HTTPS
 )
+
+# Idempotency middleware - protects mutating endpoints from duplicate execution
+app.add_middleware(IdempotencyMiddleware)
 
 # HSTS header - enforce HTTPS
 @app.middleware("http")
