@@ -32,12 +32,15 @@ bearer_scheme = HTTPBearer(auto_error=False)
     },
     summary="User login with email and password",
 )
-async def login(credentials: UserLogin) -> Token:
+async def login(credentials: UserLogin, response: Response) -> Token:
     """Authenticate user and return access + refresh tokens."""
     try:
-        return await get_auth_service().login(credentials)
+        token = await get_auth_service().login(credentials)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
+    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
+    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=True, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    return token
 
 
 @router.post(
@@ -50,12 +53,16 @@ async def login(credentials: UserLogin) -> Token:
     },
     summary="Register new user",
 )
-async def register(data: UserRegister) -> Token:
+async def register(data: UserRegister, response: Response) -> Token:
     """Register a new user account. May require email confirmation."""
     try:
-        return await get_auth_service().register(data)
+        token = await get_auth_service().register(data)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
+    if token.access_token:
+        response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
+        response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=True, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    return token
 
 
 @router.post(
@@ -85,12 +92,15 @@ async def request_otp(data: OTPRequest) -> Response:
     },
     summary="Verify OTP code and get tokens",
 )
-async def verify_otp(data: OTPVerify) -> Token:
-    """Verify OTP code received via email and return access + refresh tokens."""
+async def verify_otp(data: OTPVerify, response: Response) -> Token:
+    """Verify OTP code received via email and return tokens."""
     try:
-        return await get_auth_service().verify_otp(data)
+        token = await get_auth_service().verify_otp(data)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
+    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
+    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=True, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    return token
 
 
 @router.post(
@@ -101,12 +111,15 @@ async def verify_otp(data: OTPVerify) -> Token:
     },
     summary="Refresh access token",
 )
-async def refresh_token(data: RefreshTokenRequest) -> Token:
+async def refresh_token(data: RefreshTokenRequest, response: Response) -> Token:
     """Get new access token using refresh token."""
     try:
-        return await get_auth_service().refresh_token(data)
+        token = await get_auth_service().refresh_token(data)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
+    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
+    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=True, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    return token
 
 
 @router.post(
@@ -115,10 +128,13 @@ async def refresh_token(data: RefreshTokenRequest) -> Token:
     summary="Sign out current user",
 )
 async def logout(
+    response: Response,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     user=Depends(get_current_user),
 ) -> Response:
     """Sign out the current user (revokes session server-side)."""
     if credentials:
         await get_auth_service().logout(credentials.credentials)
+    response.delete_cookie("aura_access_token", path="/")
+    response.delete_cookie("aura_refresh_token", path="/")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
