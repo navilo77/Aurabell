@@ -136,10 +136,7 @@ class TestGetCurrentUser:
         request = MagicMock()
         request.state = MagicMock()
         request.state.user = None
-
-        # Mock credentials
-        credentials = MagicMock()
-        credentials.credentials = "valid-token"
+        request.cookies.get = MagicMock(return_value="valid-cookie-token")
 
         # Mock database session
         db = AsyncMock()
@@ -155,7 +152,7 @@ class TestGetCurrentUser:
             "sub": "user-123",
             "email": "test@example.com",
         })):
-            user = await get_current_user(request, credentials, db)
+            user = await get_current_user(request, db)
 
         assert user.id == "user-123"
         assert user.email == "test@example.com"
@@ -172,9 +169,7 @@ class TestGetCurrentUser:
         request = MagicMock()
         request.state = MagicMock()
         request.state.user = None
-
-        credentials = MagicMock()
-        credentials.credentials = "valid-token"
+        request.cookies.get = MagicMock(return_value="valid-cookie-token")
 
         db = AsyncMock()
         mock_result = MagicMock()
@@ -186,7 +181,7 @@ class TestGetCurrentUser:
             "email": "test@example.com",
         })):
             with pytest.raises(HTTPException) as exc_info:
-                await get_current_user(request, credentials, db)
+                await get_current_user(request, db)
 
         assert exc_info.value.status_code == 401
         assert "User not found" in exc_info.value.detail
@@ -203,12 +198,10 @@ class TestGetCurrentUser:
         cached_user = User(id="user-123", email="test@example.com", roles=["customer"])
         request.state.user = cached_user
 
-        credentials = MagicMock()
-        credentials.credentials = "valid-token"
         db = AsyncMock()
 
         # Should return cached user without calling verify_token or db
-        user = await get_current_user(request, credentials, db)
+        user = await get_current_user(request, db)
 
         assert user is cached_user
         db.execute.assert_not_called()
@@ -223,12 +216,10 @@ class TestGetCurrentUser:
         request.state = MagicMock()
         request.state.user = None
 
-        credentials = None  # No auth header
-
         db = AsyncMock()
 
         with pytest.raises(HTTPException) as exc_info:
-            await get_current_user(request, credentials, db)
+            await get_current_user(request, db)
 
         assert exc_info.value.status_code == 401
         assert "Missing authorization header" in exc_info.value.detail
@@ -242,9 +233,7 @@ class TestGetCurrentUser:
         request = MagicMock()
         request.state = MagicMock()
         request.state.user = None
-
-        credentials = MagicMock()
-        credentials.credentials = "valid-token"
+        request.cookies.get = MagicMock(return_value="valid-cookie-token")
 
         db = AsyncMock()
 
@@ -252,7 +241,7 @@ class TestGetCurrentUser:
             "email": "test@example.com",  # No 'sub'
         })):
             with pytest.raises(HTTPException) as exc_info:
-                await get_current_user(request, credentials, db)
+                await get_current_user(request, db)
 
         assert exc_info.value.status_code == 401
         assert "Token missing 'sub' claim" in exc_info.value.detail

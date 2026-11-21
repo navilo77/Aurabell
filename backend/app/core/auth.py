@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,11 +22,6 @@ from app.core.exceptions import (
     UserNotFoundError,
 )
 from app.core.security import verify_token
-
-
-# ─── Security Scheme ────────────────────────────────────────────────────────
-
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # ─── User Model ─────────────────────────────────────────────────────────────
@@ -57,13 +51,12 @@ class User:
 
 async def get_current_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """FastAPI dependency that returns the authenticated user.
 
     Flow:
-    1. Extract token from HttpOnly cookie (primary) or Bearer header (migration fallback)
+    1. Extract token from HttpOnly cookie
     2. Verify JWT signature, iss, aud, exp via verify_token()
     3. Fetch profile + user_roles + roles from database
     4. Cache User in request.state.user for subsequent calls
@@ -77,12 +70,10 @@ async def get_current_user(
     if hasattr(request.state, "user") and request.state.user is not None:
         return request.state.user
 
-    # Extract token: HttpOnly cookie primary, Bearer header as migration fallback
+    # Extract token from HttpOnly cookie
     token = request.cookies.get("aura_access_token")
     if not isinstance(token, str):
         token = None
-    if token is None and credentials is not None:
-        token = credentials.credentials
 
     if token is None:
         raise HTTPException(
@@ -187,7 +178,6 @@ def require_role(*required_roles: str) -> Callable[[], Awaitable[User]]:
 
 async def get_optional_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User | None:
     """Like get_current_user but returns None instead of raising 401.
@@ -195,13 +185,10 @@ async def get_optional_user(
     Use for endpoints that support both authenticated and anonymous access.
     """
     token = request.cookies.get("aura_access_token")
-    if token is None and credentials is None:
+    if token is None:
         return None
 
-    if token is None:
-        token = credentials.credentials
-
     try:
-        return await get_current_user(request, credentials, db)
+        return await get_current_user(request, db)
     except HTTPException:
         return None
