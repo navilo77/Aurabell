@@ -4,6 +4,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const token = getAccessToken();
   const res = await fetch(`/api/v1${path}`, {
     ...options,
+    credentials: "include",
     headers: {
       ...options.headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
