@@ -3,10 +3,10 @@ id: DOC-AUR-062
 title: Aura Bell — Frontend Architecture (Next.js & TypeScript)
 type: technical
 status: confirmed
-version: 1.1
+version: 1.2
 language: Bangla with English technical terms
 source: AB-SA-001 (Section 11)
-last_updated: 2026-11-20
+last_updated: 2026-11-21
 ---
 
 # Aura Bell — Frontend Architecture (ফ্রন্টএন্ড আর্কিটেকচার)
@@ -81,8 +81,8 @@ IndexedDB ক্লায়েন্ট-সাইড লোকাল ক্য�
 - অথরিটেটিভ অর্ডার স্টেট
 
 ### Current Implementation vs Target
-বর্তমান ইমপ্লিমেন্টেশনে Zustand/Context এবং localStorage বেসড কার্ট পাস্টেন্স আছে। IndexedDB, মিউটেশন কিউ এবং অফলাইন সিঙ্ক ইমপ্লিমেন্ট করা হয়নি।
+বর্তমান ইমপ্লিমেন্টেশনে IndexedDB ক্লায়েন্ট-সাইড লোকাল ক্যাশ/পারসিস্টেন্স লেয়ার ইমপ্লিমেন্ট করা হয়েছে, মিউটেশন কিউ (`drainPromise` লক, অ্যাকাউন্ট-স্কোপড মিউটেশন, idempotency কী হেডার, ব্যাকঅফ+জিটার, ডেড-লেটার) এবং অফলাইন সিঙ্ক ইমপ্লিমেন্ট করা হয়েছে। লোকালস্টোরেজ-বেসড টোকেন স্টোরেজ বাদ দিয়ে HTTPOnly কুকি (`aura_access_token`, `aura_refresh_token`) ব্যবহার করা হচ্ছে।
 
-হাইব্রিড লোকাল-ফাস্ট টার্গেট আর্কিটেকচার ইমপ্লিমেন্টেশন গ্যাপ হিসেবে থাকবে।
+হাইব্রিড লোকাল-ফাস্ট টার্গেট আর্কিটেকচার ইমপ্লিমেন্টেশন গ্যাপ সমাধান করা হয়েছে।
 
 Server Components এসইও এবং দ্রুত ফার্স্ট কন্টেন্টফুল পেইন্ট (FCP) এর জন্য প্রোডাক্ট লিস্টিং ও ক্যাটাগরি পেজ সার্ভারে রেন্ডার হবে।

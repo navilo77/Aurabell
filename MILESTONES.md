@@ -2,8 +2,8 @@
 
 **প্রকল্প:** Aura Bell (Multi-Store E-commerce: Best Gadget & Aura Skin Care)  
 **আর্কিটেকচার:** Modular Monolith (FastAPI + Supabase PostgreSQL + Next.js)  
-**ভার্সন:** 1.1  
-**সর্বশেষ আপডেট:** 2026-11-17  
+**ভার্সন:** 1.2  
+**সর্বশেষ আপডেট:** 2026-11-21  
 **অনুমোদন স্থিতি:** APPROVED & READY FOR EXECUTION  
 
 ---
@@ -364,6 +364,25 @@ flowchart LR
 * **Tenant Isolation Verification**: প্রতিটি API এন্ডপয়েন্টে স্টোর আইডি ভ্যালিডেশন। অনুমোদনहीন ক্রস-স্টোর অ্যাক্সেসের জন্য 403 ফোরবিডেন রেসপন্স।
 
 **Completion Date**: `2026-11-20` | **Verified By**: `Kilo Code` | **Commit**: `2e462e0 feat(security): enforce cross-store tenant isolation & RLS policies`
+
+---
+
+## 🔐 AUTH REMEDIATION: HttpOnly Cookie-Based Auth & ES256 JWT `[Status: COMPLETED]`
+
+> **লক্ষ্য:** ব্যাকএন্ড (FastAPI) ও ফ্রন্টএন্ড (Next.js) মধ্যে অথেনটিকেশন মিসঅ্যালাইনমেন্ট দূর করা — লোকালস্টোরেজ/বিয়ারার টোকেনের বদল HTTPOnly কুকি-বেসড অথেনটিকেশন আনা, জ devotedি ES256 JWT ভেরিফিকেশন, প্রোফাইলে রোল/স্টোর আইডি extender এবং অফলাইন সিঙ্ক হার্ডেনিং।
+
+### সম্পন্ন কাজ
+
+* **HttpOnly Cookie-Based Auth**: লগইন/রেজিস্ট্রেশন সফল হলে ব্যাকএন্ড `aura_access_token` ও `aura_refresh_token` কুকি সেট করে (`HttpOnly`, `Secure`, `SameSite=Strict`); লগআউট উভয় কুকি মুছে ফেলে (204)
+* **Bearer Fallback Removed**: `get_current_user` কুকি-প্রাইমারি (বearer ফলব্যাক বাদ দেয়া); ফ্রন্টএন্ড `apiFetch` কেবল `credentials: "include"` ব্যবহার করে, কোনো `Authorization: Bearer` হেডার পাঠায় না
+* **JWT ES256**: `algorithms=["RS256"]` → `algorithms=["ES256"]` (`security.py` লাইন ১২০, ১৬১); ডকস্ট্রিং `(RS256)` → `(ES256)`
+* **Profile Extended**: `ProfileRead` এ `roles` (UserRole[]) ও `store_ids` (string[]) যোগ করা (`/users/me` এন্ডপয়েন্টে)
+* **Offline Sync Hardening**: IndexedDB v2 স্কিমা মাইগ্রেশন (`user_id`/`status` इंडেক্স, `purgeUserMutations(userId)`), `drainPromise` লক, অ্যাকাউন্ট-স্কোপড মিউটেশন, idempotency কী হেডার, ব্যাকঅফ+জিটার, ডেড-লেটার
+* **Idempotency**: `Idempotency-Key` মিডলওয়্যার, ২৪ ঘণ্টা TTL, কী + এন্ডপয়েন্ট + রিকোয়েস্ট হ্যাশ দিয়ে কೀ করা
+
+**Completion Date**: `2026-11-21` | **Verified By**: `Kilo Code` | **Commit**: `2cef62a fix(auth): remove bearer authentication fallback`
+
+**Test Results**: 144 backend tests passed, 4 E2E (E1–E6) passed, 0 bearer headers in page-side requests, real ES256 JWT verified against live Supabase
 
 ---
 

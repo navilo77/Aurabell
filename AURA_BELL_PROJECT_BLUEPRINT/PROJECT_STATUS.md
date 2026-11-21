@@ -3,10 +3,10 @@ id: DOC-AUR-003
 title: Aura Bell — Project Status & Milestone Tracker
 type: governance
 status: confirmed
-version: 2.0
+version: 2.1
 language: Bangla with English technical terms
 source: AB-PV-001, AB-SA-001, AB-DS-001, AB-DM-001
-last_updated: 2026-11-17
+last_updated: 2026-11-21
 ---
 
 # Aura Bell — Project Status & Milestone Tracker (প্রকল্পের বর্তমান স্থিতি ও মাইলস্টোন)
@@ -17,12 +17,12 @@ last_updated: 2026-11-17
 
 ## ১. প্রকল্পের সামগ্রিক স্বাস্থ্য (Project Health Overview)
 
-* **বর্তমান ফেজ**: Phase 1 — Architecture & Blueprint Finalization (সম্পন্ন) ➡️ Ready for Implementation ➡️ M3 COMPLETED, ready for M4
+* **বর্তমান ফেজ**: M4 Complete — Cross-Store Security & Hardening Complete — Auth Remediation Complete — Ready for M5
 * **ব্লুপ্রিন্ট ডিরেক্টরি স্থিতি**: ১০০% সম্পূর্ণ ও সুসংগঠিত (৯১টি পূর্ণাঙ্গ নথি, ১৪টি স্ট্যান্ডার্ড ডিরেক্টরি)
 * **আর্কিটেকচার রেডিনেস**: ১০০% (FastAPI + Supabase + Next.js মডুলার মনোলিথ অনুমোদিত)
 * **ডাটাবেজ রেডিনেস**: ১০০% (৫০টি টেবিলের স্কিমা ও এসকিউএল মাইগ্রেশন স্ক্রিপ্ট প্রস্তুত)
 * **ওনার ডিসিশন স্ট্যাটাস**: ১০০% কনফার্মড (DEC-OWN-001 থেকে DEC-OWN-004 অনুমোদিত)
-* **অ্যাপ্লিকেশন সোর্স কোড স্ট্যাটাস**: M1 (Auth, DB, Seed) ✅; M2 Catalog & Pricing ✅; M3 Inventory & Warehouse Ledger ✅ (18/18 inventory tests green, full suite 78 passed / 5 skipped)
+* **অ্যাপ্লিকেশন সোর্স কোড স্ট্যাটাস**: M1 (Auth, DB, Seed) ✅; M2 Catalog & Pricing ✅; M3 Inventory & Warehouse Ledger ✅; M4 Cart, Checkout & Orders ✅; Auth Remediation (HttpOnly cookie auth, ES256 JWT, Bearer fallback removed, roles/store_ids in profile, logout cookie clearing, offline sync hardening, idempotency) ✅
 
 ---
 
@@ -35,7 +35,7 @@ last_updated: 2026-11-17
 | `MS-1.2` | কেন্দ্রীয় ব্লুপ্রিন্ট ও টেকনিক্যাল নথিপত্র প্রস্তুত ও পরিচ্ছন্নকরণ | ✅ Completed | ১০০% |
 | `MS-1.3` | ব্যাকএন্ড স্কাফোল্ডিং (FastAPI, Alembic/Supabase, Config, Auth) | ✅ Completed | ১০০% |
 | `MS-1.4` | ডাটাবেজ মাইগ্রেশন এক্সিকিউশন (৫০টি টেবিল, ট্রিগার ও আরএলএস) | ✅ Completed | ১০০% |
-| `MS-1.5` | আইডেন্টিটি, স্টোর ও ক্যাটালগ মডিউল ডেভেলপমেন্ট (M2.1 ✅, M2.4 ✅, M2.2/M2.3 coded) | 🔄 In Progress | ৫০% |
+| `MS-1.5` | আইডেন্টিটি, স্টোর ও ক্যাটালগ মডিউল ডেভেলপমেন্ট (M2.1 ✅, M2.4 ✅, M2.2/M2.3 coded) | ✅ Completed | ১০০% |
 
 ### Phase 2: Operational Optimization (পরবর্তী ধাপ)
 * কুরিয়ার এপিআই অটোমেশন (Pathao, Steadfast API)।
@@ -54,4 +54,5 @@ last_updated: 2026-11-17
 
 1. ব্যাকএন্ড FastAPI রিপোজিটরি স্কাফোল্ডিং ও Supabase PostgreSQL প্রজেক্টে মাইগ্রেশন স্ক্রিপ্ট রান করা।
 2. ডেভেলপার ও এআই এজেন্টদের `PROJECT_BRAIN.md` মেনে টাস্কভিত্তিক কাজ বণ্টন করা।
+3. Auth Remediation সম্পন্ন: HttpOnly কুকি-বেসড অথেনটিকেশন, Bearer ফলব্যাক বাদ, ES256 JWT, রোল/স্টোর আইডি প্রোফাইলে, লগআউট কুকি ক্লিয়ারিং, অফলাইন সিঙ্ক হার্ডেনিং, আইডেমপোটেন্সি মিডলওয়্যার।
 

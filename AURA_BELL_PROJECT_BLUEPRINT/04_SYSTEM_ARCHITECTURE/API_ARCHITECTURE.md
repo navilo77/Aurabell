@@ -3,10 +3,10 @@ id: DOC-AUR-065
 title: Aura Bell — API Architecture & Versioning Strategy
 type: technical
 status: confirmed
-version: 1.1
+version: 1.2
 language: Bangla with English technical terms
 source: AB-SA-001 (Section 5)
-last_updated: 2026-11-20
+last_updated: 2026-11-21
 ---
 
 # Aura Bell — API Architecture & Versioning (এপিআই আর্কিটেকচার)
@@ -17,8 +17,8 @@ last_updated: 2026-11-20
 * সমস্ত রিকোয়েস্ট ও রেসপন্স বডি স্ট্যান্ডার্ড `application/json` ফরম্যাটে আদান-প্রদান হবে।
 
 ## ২. অথেনটিকেশন ও টোকেন পাসিং
-* সিকিউরড এন্ডপয়েন্টগুলোতে `Authorization: Bearer <JWT_TOKEN>` হেডার পাঠানো বাধ্যতামূলক।
-* FastAPI ব্যাকএন্ড মিডলওয়্যার প্রতি রিকোয়েস্টে টোকেন সিগনেচার, এক্সপায়ারি ও ইউজার রোল পরীক্ষা করবে।
+* সিকিউরড এন্ডপয়েন্টগুলোতে HTTPOnly কুকি (`aura_access_token`) দিয়ে অথেনটিকেশন করা বাধ্যতামূলক।
+* FastAPI ব্যাকএন্ড মিডলওয়্যার প্রতি রিকোয়েস্টে কুকি থেকে টোকেন সিগনেচার, এক্সপায়ারি ও ইউজার রোল পরীক্ষা করবে। বearer হেডার ফলব্যাক নেই।
 
 ---
 

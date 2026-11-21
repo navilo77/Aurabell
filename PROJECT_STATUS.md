@@ -2,14 +2,14 @@
 
 **প্রকল্প:** Aura Bell (Multi-Store E-commerce: Best Gadget & Aura Skin Care)  
 **আর্কিটেকচার:** Modular Monolith (FastAPI + Supabase PostgreSQL + Next.js)  
-**ভার্সন:** 1.1  
-**সর্বশেষ আপডেট:** 2026-11-20  
+**ভার্সন:** 1.2  
+**সর্বশেষ আপডেট:** 2026-11-21  
 
 ---
 
 ## বর্তমান ফেজ (Current Phase)
 
-`M4 Complete — Cross-Store Security & Hardening Complete — Ready for M5`
+`M4 Complete — Cross-Store Security & Hardening Complete — Auth Remediation Complete — Ready for M5`
 
 ---
 
@@ -22,6 +22,7 @@
 | **M3** | Concurrency-Safe Inventory & Ledger | ৫/৫ | ✅ COMPLETED |
 | **M4** | Shared Cart & Split-Order Checkout | ৪/৪ | ✅ COMPLETED |
 | **Security** | Cross-Store Security & Hardening | — | ✅ 100% COMPLETE |
+| **Auth** | HttpOnly Cookie Auth Remediation | — | ✅ COMPLETED |
 
 ---
 
@@ -32,11 +33,12 @@
 - M3: 5 of 5 sub-milestones completed (100%)
 - M4: 4 of 4 sub-milestones completed (100%) — Shared Cart, Split Checkout, COD OTP Verification
 - Cross-Store Security & Hardening — IDOR fixes, store-scoped Auth model, updated RLS policies
+- Auth Remediation — HttpOnly cookie-based auth (`aura_access_token`, `aura_refresh_token`), Bearer fallback removed, JWT ES256 (was RS256), `/users/me` extended with roles/store_ids, logout clears cookies, offline account isolation
 - Local Supabase verified with 50 relational tables
 - All Gap Fixes implemented
 - Initial RLS policies applied (12 policies)
 - Seed data populated (7 roles, 2 stores)
-- Test suite: **126 tests passing**
+- Test suite: **148 tests passing** (144 backend + 4 E2E)
 
 ---
 
@@ -47,17 +49,19 @@
 3. ✅ **M3.1–M3.5:** Inventory Balances, Atomic Reservations & Ledger — COMPLETED
 4. ✅ **M4.1–M4.4:** Shared Cart, Split-Order Checkout & COD Verification — COMPLETED
 5. ✅ **Security Hardening:** IDOR fixes, store-scoped Auth model, RLS policy updates — COMPLETED
+6. ✅ **Auth Remediation:** HttpOnly cookie auth, Bearer fallback removed, ES256 JWT, roles/store_ids in profile, logout cookie clearing, offline sync hardening — COMPLETED
 
 ---
 
 ## ডেভেলপমেন্ট মেটাডেটা (Development Metadata)
 
-**Last Updated:** 2026-11-20  
-**Current Sprint:** M4 Complete — Ready for M5  
+**Last Updated:** 2026-11-21  
+**Current Sprint:** M4 Complete — Auth Remediation Complete — Ready for M5  
 **Total Sub-milestones:** 27  
 **Completed:** 17  
 **Remaining:** 10  
 
 **Overall Project Progress: 63%**
 
-**পরবর্তী মাইলস্টোন:** M5 — Payment Gateway Adapters & Webhook Reliability
+**পরবর্তী মাইলস্টোন:** M5 — Payment Gateway Adapters & Webhook Reliability  
+**গ maintained by:** Kilo Code (Autonomous Implementation Agent)

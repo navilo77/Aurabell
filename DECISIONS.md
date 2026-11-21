@@ -4,8 +4,8 @@ Generated: 2026-11-14
 
 ## D1: Auth Provider — CLOSED
 **Decision**: Supabase GoTrue (mandated by blueprint)
-**JWT Validation**: RS256 via JWKS endpoint at `SUPABASE_URL + "/auth/v1/.well-known/jwks.json"`
-**Verify on Day 2**: Exact algorithm from real token
+**JWT Validation**: ES256 via local JWKS (`kid=b81269f1-21d8-4f2e-b719-c2240a840d90`, `alg=ES256`)
+**Verify on Day 2**: Exact algorithm confirmed — ES256 (was RS256 in Day 0 plan)
 
 ---
 

@@ -2,8 +2,8 @@
 
 **প্রকল্প:** Aura Bell (Multi-Store E-commerce: Best Gadget & Aura Skin Care)  
 **আর্কিটেকচার:** Modular Monolith (FastAPI + Supabase PostgreSQL + Next.js)  
-**ভার্সন:** 1.1  
-**সর্বশেষ আপডেট:** 2026-11-17  
+**ভার্সন:** 1.2  
+**সর্বশেষ আপডেট:** 2026-11-21  
 **অনুমোদন স্থিতি:** APPROVED & READY FOR EXECUTION  
 
 ---
@@ -53,9 +53,10 @@ flowchart LR
 
 * **M1.3: Core Identity & Auth Integration**
   - Supabase Auth (GoTrue) পিকেসিই ফ্লো ও ওটিপি/ইমেইল লগইন মিডলওয়্যার তৈরি।
-  - বিয়ারার JWT টোকেন সিগনেচার, এক্সপায়ারি ও অডিয়েন্স ভ্যালিডেশন।
-  - রোল-বেসড এক্সেস কন্ট্রোল (RBAC) ডিপেন্ডেন্সি ইনজেকশন (`require_role()`)।
-  - ইউজার প্রোফাইল (`profiles`) ও অ্যাড্রেস বুক (`addresses`) CRUD এপিআই।
+  - HTTPOnly কুকি-বেসড অথেনটিকেশন (`aura_access_token`, `aura_refresh_token`); বearer ফলব্যাক নেই।
+  - JWT ES256 সিগনেচার, এক্সপায়ারি ও অডিয়েন্স ভ্যালিডেশন (`algorithms=["ES256"]`).
+  - রোল-বেসড এক্সেস কন্ট্রোল (RBAC) ডিপেন্ডেন্সি ইনজেকশন (`require_role()`).
+  - ইউজার প্রোফাইল (`profiles`) ও অ্যাড্রেস বুক (`addresses`) CRUD এপিআই; `roles` ও `store_ids` প্রোফাইলে extender।
 
 * **M1.4: Base Seed Data Initialization**
   - সিস্টেম রোলস (`Super Admin`, `Store Manager`, `Inventory Manager`, `Customer`) সিডিং।
@@ -200,10 +201,11 @@ flowchart LR
 | **MILESTONE 1** | **Infrastructure, Database & Auth** | Blueprint Ready | ৪টি | ৪ | ১০০% | ✅ Completed |
 | **MILESTONE 2** | **Multi-Store Catalog & Pricing Engine** | Milestone 1 | ৪টি | ৪ | ১০০% | ✅ Completed |
 | **MILESTONE 3** | **Concurrency-Safe Inventory & Ledger** | Milestone 2 | ৫টি | ৫ | ১০০% | ✅ Completed |
-| **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ০ | ০% | 📋 Planned |
+| **MILESTONE 4** | **Shared Cart & Split-Order Checkout** | Milestone 3 | ৪টি | ৪ | ১০০% | ✅ Completed |
 | **MILESTONE 5** | **Payment Adapters & Webhook Engine** | Milestone 4 | ৫টি | ০ | ০% | 📋 Planned |
 | **MILESTONE 6** | **Storefronts, Admin & Production Launch**| Milestone 5 | ৫টি | ০ | ০% | 📋 Planned |
-| **সর্বমোট** | **সম্পূর্ণ প্রকল্প বাস্তবায়ন (Full Platform)** | — | **২৭টি** | **০** | **০%** | **ইঞ্জিনিয়ারিং শুরু হচ্ছে** |
+| **অথ রিমেডিয়েশন** | **HttpOnly Cookie Auth, ES256 JWT, Idempotency, Offline Sync** | M1+M4 | — | — | ১০০% | ✅ Completed |
+| **সর্বমোট** | **সম্পূর্ণ প্রকল্প বাস্তবায়ন (Full Platform)** | — | **২৭টি** | **১৭** | **৬৩%** | **মাইলস্টোন ১-৪ ও অথ রিমেডিয়েশন সম্পূর্ণ** |
 
 ---
 
@@ -273,20 +275,40 @@ flowchart LR
 
 ---
 
-### 🔲 MILESTONE 4: Shared Cart & Unified Split-Order Checkout Engine
-- [ ] **M4.0: Main Milestone 4 — Shared Cart, Split Orders & Checkout Engine** `[Status: PLANNED]`
-  - [ ] **M4.1: Multi-Store Shared Cart** `[Status: PENDING]`
+### ✅ MILESTONE 4: Shared Cart & Unified Split-Order Checkout Engine
+- [x] **M4.0: Main Milestone 4 — Shared Cart, Split Orders & Checkout Engine** `[Status: COMPLETED]`
+  - [x] **M4.1: Multi-Store Shared Cart** `[Status: COMPLETE]`
     - *Scope*: Multi-store cart items, quantity update, real-time stock/active checks
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M4.2: Server-Side Checkout Calculation** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+  - [x] **M4.2: Server-Side Checkout Calculation** `[Status: COMPLETE]`
     - *Scope*: Server-side total calculation, owner-approved flat delivery fee application
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M4.3: Split Order Transaction Engine** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+  - [x] **M4.3: Split Order Transaction Engine** `[Status: COMPLETE]`
     - *Scope*: Atomic transaction: Parent Order (`orders`) -> Split Store Orders (`store_orders`) -> Item snapshots
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
-  - [ ] **M4.4: COD Fraud Prevention & Verification** `[Status: PENDING]`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+  - [x] **M4.4: COD Fraud Prevention & Verification** `[Status: COMPLETE]`
     - *Scope*: 4-digit SMS OTP verification on COD orders before confirming to mitigate RTO risk
-    - *Completion Date*: `PENDING` | *Verified By*: `UNASSIGNED`
+    - *Completion Date*: `2026-11-17` | *Verified By*: `Kilo Code`
+
+---
+
+### ✅ AUTH REMEDIATION: HttpOnly Cookie Auth, ES256 JWT, Idempotency, Offline Sync
+- [x] **Auth Remediation** `[Status: COMPLETED]`
+  - *Completion Date*: `2026-11-21` | *Verified By*: `Kilo Code` | *Commit*: `2cef62a fix(auth): remove bearer authentication fallback`
+  - *Detailed Checklist:*
+    - [x] HttpOnly cookie-based auth (`aura_access_token`, `aura_refresh_token` with `HttpOnly`, `Secure`, `SameSite=Strict`)
+    - [x] Bearer fallback removed from `get_current_user` (cookie-primary only)
+    - [x] JWT algorithm RS256 → ES256 (`security.py` lines 120, 161; docstring line 90)
+    - [x] `ProfileRead` extended with `roles` and `store_ids` (`/users/me` endpoint)
+    - [x] `/auth/logout` unprotected, clears both cookies, returns 204
+    - [x] Frontend `apiFetch` uses `credentials: "include"` only, no `Authorization: Bearer` header
+    - [x] Shared refresh promise lock, 401→refresh→retry, refresh failure→logout→redirect
+    - [x] Middleware cookie-presence check; role-guard fetches `/users/me` for roles
+    - [x] IndexedDB v2 schema migration (`user_id`/`status` indexes, `purgeUserMutations(userId)`)
+    - [x] `drainPromise` lock, account-scoped mutations, idempotency key header, backoff+jitter, dead-letter
+    - [x] Idempotency middleware (`Idempotency-Key`, 24h TTL, keyed by key + endpoint + request hash)
+    - [x] 144 backend tests passed, 4 E2E (E1–E6) passed, 0 bearer headers in page-side requests
+    - [x] Real ES256 JWT verified against live Supabase
 
 ---
 

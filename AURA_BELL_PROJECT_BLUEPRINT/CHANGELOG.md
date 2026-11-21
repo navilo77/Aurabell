@@ -3,10 +3,10 @@ id: DOC-AUR-004
 title: Aura Bell — Project Changelog
 type: governance
 status: confirmed
-version: 1.0
+version: 1.1
 language: Bangla with English technical terms
 source: AB-PV-001, AB-SA-001, AB-DS-001, AB-DM-001
-last_updated: 2026-11-04
+last_updated: 2026-11-21
 ---
 
 # Aura Bell — Project Changelog (পরিবর্তন ও সংস্করণের ইতিহাস)
@@ -14,6 +14,20 @@ last_updated: 2026-11-04
 এই নথিতে Aura Bell ব্লুপ্রিন্ট ও সিস্টেম স্পেসিফিকেশনের সমস্ত পরিবর্তন, সংযোজন এবং সিদ্ধান্তের সংস্করণ ট্র্যাকিং লিপিবদ্ধ করা হয়।
 
 ---
+
+## [1.2.0] — 2026-11-21
+
+### Added (সংযোজিত)
+* **Auth Remediation**: HttpOnly cookie-based auth (`aura_access_token`, `aura_refresh_token` with `HttpOnly`, `Secure`, `SameSite=Strict`); Bearer fallback removed from `get_current_user`; JWT algorithm RS256 → ES256 (`kid=b81269f1-21d8-4f2e-b719-c2240a840d90`); `ProfileRead` extended with `roles` and `store_ids`; `/auth/logout` unprotected, clears both cookies, returns 204; frontend `apiFetch` uses `credentials: "include"` only, no `Authorization: Bearer` header; offline sync hardening (IndexedDB v2, `drainPromise` lock, account-scoped mutations, idempotency key header, backoff+jitter, dead-letter); idempotency middleware (`Idempotency-Key`, 24h TTL, keyed by key + endpoint + request hash)
+
+### Changed (পরিবর্তিত)
+* AUTHENTICATION_AUTHORIZATION.md: Token/session storage strategy finalized — HttpOnly cookie-based auth (was TBD)
+* API_ARCHITECTURE.md: `Authorization: Bearer <JWT_TOKEN>` header mandatory → cookie-based auth only
+* FRONTEND_ARCHITECTURE.md: IndexedDB, mutation queue, offline sync — implemented (was not implemented); localStorage token storage removed
+* BACKEND_ARCHITECTURE.md: Idempotency exact protocol — implemented via `Idempotency-Key` middleware (was TBD)
+* DATABASE_ARCHITECTURE.md: IndexedDB client-side layer — implemented (was not implemented)
+* SECURITY_ARCHITECTURE.md: Replay/idempotency and offline mutation tampering — implemented (was TBD)
+* DECISIONS.md D1: JWT algorithm RS256 → ES256 (confirmed via real token verification against live Supabase)
 
 ## [1.1.0] — 2026-11-08
 

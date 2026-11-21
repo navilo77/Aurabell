@@ -3,10 +3,10 @@ id: DOC-AUR-064
 title: Aura Bell — Database Architecture & Concurrency Strategy
 type: technical
 status: confirmed
-version: 1.1
+version: 1.2
 language: Bangla with English technical terms
 source: AB-SA-001, AB-DS-001
-last_updated: 2026-11-20
+last_updated: 2026-11-21
 ---
 
 # Aura Bell — Database Architecture & Concurrency (ডাটাবেজ আর্কিটেকচার ও কনকারেন্সি)
@@ -31,7 +31,7 @@ IndexedDB ক্লায়েন্ট-সাইড লোকাল ক্য�
 লোকাল ডেটা রেসপন্সিভনেস এবং অফলাইন continuity-এর জন্য ব্যবহার করা যেতে পারে, কিন্তু bijনেস-ক্রিটিক্যাল অপারেশন চূড়ান্ত করার আগে সার্ভার ভ্যালিডেশন অপরিহার্য।
 
 ### Current Implementation vs Target
-বর্তমান ইমপ্লিমেন্টেশনে শুধু সার্ভার-সাইড PostgreSQL ডাটাবেজ আছে। IndexedDB ক্লায়েন্ট-সাইড লেয়ার ইমপ্লিমেন্ট করা হয়নি।
+বর্তমান ইমপ্লিমেন্টেশনে সার্ভার-সাইড PostgreSQL ডাটাবেজের পাশাপাশি IndexedDB ক্লায়েন্ট-সাইড লেয়ার ইমপ্লিমেন্ট করা হয়েছে (v2 স্কিমা মাইগ্রেশন, `user_id`/`status` इंडেক্স, `purgeUserMutations(userId)`)। লোকাল পেন্ডিং মিউটেশন অনলাইন হলে সার্ভারের সাথে সিঙ্ক হয় (`drainPromise` লক, অ্যাকাউন্ট-স্কোপড মিউটেশন, idempotency কী হেডার, ব্যাকঅফ+জিটার, ডেড-লেটার)।
 
 ### সিঙ্ক নীতিসূত্র
 লোকাল পেন্ডিং মিউটেশন অনলাইন হলে সার্ভারের সাথে সিঙ্ক হবে। bijনেস-ক্রিটিক্যাল কনফ্লিক্টে সার্ভার অথরিটি থাকবে। এক্সাক্ট সিঙ্ক প্রোটোকল, কনফ্লিক্ট রেজলুশন অ্যালগরিদম এবং মিউটেশন শ্রেণীবিন্যাস ইমপ্লিমেন্টেশন ফেজে সিদ্ধান্ত নেওয়া হবে।
