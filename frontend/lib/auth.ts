@@ -1,12 +1,6 @@
-import { DecodedToken, TokenResponse, UserRole } from "@/lib/types";
+import { UserRole } from "@/lib/types";
 
 const TOKEN_KEY = "aura_access_token";
-
-export function setAccessToken(token: string): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-}
 
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") {
@@ -21,32 +15,7 @@ export function clearAccessToken(): void {
   }
 }
 
-export function setTokenResponse(token: TokenResponse): void {
-  setAccessToken(token.access_token);
-  setRefreshToken(token.refresh_token);
-}
-
-export function setRefreshToken(token: string): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("aura_refresh_token", token);
-  }
-}
-
-export function getRefreshToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  return localStorage.getItem("aura_refresh_token");
-}
-
-export function clearAuth(): void {
-  clearAccessToken();
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("aura_refresh_token");
-  }
-}
-
-export function decodeToken(token: string): DecodedToken | null {
+export function decodeToken(token: string): { sub?: string; email?: string; role?: string; exp?: number; [key: string]: unknown } | null {
   try {
     const payload = token.split(".")[1];
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
@@ -56,26 +25,10 @@ export function decodeToken(token: string): DecodedToken | null {
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
     );
-    return JSON.parse(jsonPayload) as DecodedToken;
+    return JSON.parse(jsonPayload) as { sub?: string; email?: string; role?: string; exp?: number; [key: string]: unknown };
   } catch {
     return null;
   }
-}
-
-export function getUserRoles(): UserRole[] {
-  const token = getAccessToken();
-  if (!token) {
-    return ["customer"];
-  }
-  const decoded = decodeToken(token);
-  if (!decoded?.role) {
-    const tokenAny = decoded as Record<string, unknown>;
-    const roleClaim = tokenAny["role"];
-    if (typeof roleClaim === "string") {
-      return [roleClaim as UserRole];
-    }
-  }
-  return ["customer"];
 }
 
 export function getCurrentUser() {
@@ -88,8 +41,7 @@ export function getCurrentUser() {
     return null;
   }
   const roles: UserRole[] = [];
-  const tokenAny = decoded as Record<string, unknown>;
-  const roleClaim = tokenAny["role"];
+  const roleClaim = decoded.role;
   if (typeof roleClaim === "string") {
     roles.push(roleClaim as UserRole);
   }
@@ -111,15 +63,4 @@ export function redirectByRole(roles: UserRole[]): void {
   } else {
     window.location.href = "/shop";
   }
-}
-
-export function getAuthHeaders(): Record<string, string> {
-  const token = getAccessToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
 }
