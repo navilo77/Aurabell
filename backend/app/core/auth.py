@@ -63,7 +63,7 @@ async def get_current_user(
     """FastAPI dependency that returns the authenticated user.
 
     Flow:
-    1. Extract Bearer token from Authorization header
+    1. Extract token from HttpOnly cookie (primary) or Bearer header (migration fallback)
     2. Verify JWT signature, iss, aud, exp via verify_token()
     3. Fetch profile + user_roles + roles from database
     4. Cache User in request.state.user for subsequent calls
@@ -77,14 +77,19 @@ async def get_current_user(
     if hasattr(request.state, "user") and request.state.user is not None:
         return request.state.user
 
-    if credentials is None:
+    # Extract token: HttpOnly cookie primary, Bearer header as migration fallback
+    token = request.cookies.get("aura_access_token")
+    if not isinstance(token, str):
+        token = None
+    if token is None and credentials is not None:
+        token = credentials.credentials
+
+    if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authorization header",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    token = credentials.credentials
 
     try:
         payload = await verify_token(token)
@@ -189,8 +194,12 @@ async def get_optional_user(
 
     Use for endpoints that support both authenticated and anonymous access.
     """
-    if credentials is None:
+    token = request.cookies.get("aura_access_token")
+    if token is None and credentials is None:
         return None
+
+    if token is None:
+        token = credentials.credentials
 
     try:
         return await get_current_user(request, credentials, db)
