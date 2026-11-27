@@ -187,3 +187,42 @@ def supabase_anon_client():
     return create_client(url, key)
 
 
+@pytest.fixture
+def platform_admin_user():
+    """Platform admin user for testing central inventory access."""
+    from app.core.auth import User
+    return User(
+        id="test-platform-admin",
+        email="admin@test.com",
+        roles=["super_admin"],
+        store_ids=[],
+    )
+
+
+@pytest.fixture
+def store_manager_user():
+    """Store manager user for testing store-scoped access."""
+    from app.core.auth import User
+    return User(
+        id="test-store-manager",
+        email="manager@test.com",
+        roles=["store_manager"],
+        store_ids=["store-a", "store-b"],
+    )
+
+
+@pytest.fixture
+def make_store_manager_user():
+    """Factory fixture to create a store manager user for a specific store."""
+    from app.core.auth import User
+    
+    def _make_store_manager_user(store_id: str) -> User:
+        return User(
+            id=f"test-store-manager-{store_id}",
+            email=f"manager-{store_id}@test.com",
+            roles=["store_manager"],
+            store_ids=[store_id],
+        )
+    return _make_store_manager_user
+
+

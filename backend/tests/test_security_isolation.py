@@ -226,7 +226,7 @@ class TestRlsMigrationFiles:
     def test_security_rls_migration_exists(self) -> None:
         from pathlib import Path
 
-        migration_dir = Path("backend/supabase/migrations")
+        migration_dir = Path(__file__).parent.parent / "supabase" / "migrations"
         security_files = [
             p
             for p in migration_dir.glob("*.sql")

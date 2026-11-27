@@ -43,6 +43,7 @@ pytestmark = [
 @pytest.mark.asyncio
 async def test_price_coupon_scopes_duplicate_code_and_admin_permission(
     db_session: AsyncSession,
+    platform_admin_user: User,
 ) -> None:
     suffix = uuid4().hex
     store_ids: list[UUID] = []
@@ -96,7 +97,8 @@ async def test_price_coupon_scopes_duplicate_code_and_admin_permission(
                     variant_id=variant_id,
                     selling_price=Decimal("100.00"),
                     compare_at_price=Decimal("120.00"),
-                )
+                ),
+                platform_admin_user,
             )
 
         now = datetime.now(timezone.utc)
@@ -108,11 +110,12 @@ async def test_price_coupon_scopes_duplicate_code_and_admin_permission(
                 discount_value=Decimal("15.00"),
                 start_at=now - timedelta(hours=1),
                 end_at=now + timedelta(hours=1),
-            )
+            ),
+            platform_admin_user,
         )
         promotion_ids.append(promotion.id)
-        await service.add_product_to_promotion(promotion.id, product_ids[0])
-        await service.add_store_to_promotion(promotion.id, store_ids[0])
+        await service.add_product_to_promotion(promotion.id, product_ids[0], platform_admin_user)
+        await service.add_store_to_promotion(promotion.id, store_ids[0], platform_admin_user)
 
         price = await service.calculate_price(
             variant_ids[0],
@@ -136,7 +139,8 @@ async def test_price_coupon_scopes_duplicate_code_and_admin_permission(
                 discount_value=Decimal("10.00"),
                 start_at=now - timedelta(days=2),
                 end_at=now - timedelta(days=1),
-            )
+            ),
+            platform_admin_user,
         )
         promotion_ids.append(expired.id)
         with pytest.raises(PricingError, match="invalid, expired"):
@@ -151,14 +155,18 @@ async def test_price_coupon_scopes_duplicate_code_and_admin_permission(
                     discount_value=Decimal("5.00"),
                     start_at=now - timedelta(hours=1),
                     end_at=now + timedelta(hours=1),
-                )
+                ),
+                platform_admin_user,
             )
         assert duplicate.value.code == "DUPLICATE_COUPON_CODE"
 
         checker = require_role("admin", "owner")
-        await checker(User(id="admin-id", email="admin@example.com", roles=["admin"]))
+        # Mock request for require_role
+        from unittest.mock import MagicMock
+        mock_request = MagicMock()
+        await checker(request=mock_request, user=User(id="admin-id", email="admin@example.com", roles=["admin"]))
         with pytest.raises(HTTPException) as denied:
-            await checker(User(id="customer-id", email="customer@example.com", roles=["customer"]))
+            await checker(request=mock_request, user=User(id="customer-id", email="customer@example.com", roles=["customer"]))
         assert denied.value.status_code == 403
     finally:
         await db_session.rollback()

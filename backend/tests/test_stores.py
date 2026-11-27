@@ -286,13 +286,13 @@ class TestStorePolicies:
     """Store-specific policy management tests."""
 
     @pytest.mark.asyncio
-    async def test_create_return_policy(self, db_session):
+    async def test_create_return_policy(self, db_session, make_store_manager_user):
         """Test creating return policy for store."""
         service = StoresService(db_session)
         create_data = StoreCreate(
-            name="Policy Test Store",
-            slug=f"policy-test-{_suffix()}",
-            description="Store for policy testing",
+            name="Return Policy Store",
+            slug=f"return-policy-test-{_suffix()}",
+            description="Store for return policy testing",
             logo_url="https://example.com/logo.png",
             status="active",
         )
@@ -307,14 +307,15 @@ class TestStorePolicies:
             is_active=True,
         )
 
-        result = await service.create_return_policy(store.id, policy_data)
+        store_manager_user = make_store_manager_user(str(store.id))
+        result = await service.create_return_policy(store.id, policy_data, store_manager_user)
         assert result.store_id == store.id
         assert result.policy_type == "return"
         assert result.is_active is True
         assert result.policy_content["return_period_days"] == 30
 
     @pytest.mark.asyncio
-    async def test_create_warranty_policy(self, db_session):
+    async def test_create_warranty_policy(self, db_session, make_store_manager_user):
         """Test creating warranty policy for store."""
         service = StoresService(db_session)
         create_data = StoreCreate(
@@ -335,13 +336,14 @@ class TestStorePolicies:
             is_active=True,
         )
 
-        result = await service.create_warranty_policy(store.id, policy_data)
+        store_manager_user = make_store_manager_user(str(store.id))
+        result = await service.create_warranty_policy(store.id, policy_data, store_manager_user)
         assert result.store_id == store.id
         assert result.policy_type == "warranty"
         assert result.is_active is True
 
     @pytest.mark.asyncio
-    async def test_create_terms_conditions(self, db_session):
+    async def test_create_terms_conditions(self, db_session, make_store_manager_user):
         """Test creating terms and conditions for store."""
         service = StoresService(db_session)
         create_data = StoreCreate(
@@ -362,13 +364,14 @@ class TestStorePolicies:
             is_active=True,
         )
 
-        result = await service.create_terms_conditions(store.id, policy_data)
+        store_manager_user = make_store_manager_user(str(store.id))
+        result = await service.create_terms_conditions(store.id, policy_data, store_manager_user)
         assert result.store_id == store.id
         assert result.policy_type == "terms_conditions"
         assert result.is_active is True
 
     @pytest.mark.asyncio
-    async def test_get_all_store_policies(self, db_session):
+    async def test_get_all_store_policies(self, db_session, make_store_manager_user):
         """Test retrieving all policies for a store."""
         service = StoresService(db_session)
         create_data = StoreCreate(
@@ -380,19 +383,21 @@ class TestStorePolicies:
         )
         store = await service.create_store(create_data)
 
+        store_manager_user = make_store_manager_user(str(store.id))
+
         return_data = ReturnPolicyCreate(
             policy_content={"return_period_days": 60},
             is_active=True,
         )
-        await service.create_return_policy(store.id, return_data)
+        await service.create_return_policy(store.id, return_data, store_manager_user)
 
         warranty_data = WarrantyPolicyCreate(
             policy_content={"warranty_period_months": 12},
             is_active=True,
         )
-        await service.create_warranty_policy(store.id, warranty_data)
+        await service.create_warranty_policy(store.id, warranty_data, store_manager_user)
 
-        policies = await service.get_store_policies(store.id)
+        policies = await service.get_store_policies(store.id, store_manager_user)
         assert isinstance(policies, list)
         assert len(policies) >= 2  # At least return and warranty policies
 
