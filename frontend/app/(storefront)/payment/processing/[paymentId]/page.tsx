@@ -315,7 +315,7 @@ export default function PaymentProcessingPage() {
                 )}
               </Button>
               <p className="text-center text-xs text-zinc-500">
-                Complete payment on AmarPay, then click "Check Payment Status" to verify.
+                Complete payment on AmarPay, then click &ldquo;Check Payment Status&rdquo; to verify.
               </p>
             </div>
           )}
