@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { clearAccessToken } from "@/lib/auth";
+import { useAuth } from "@/lib/auth-context";
 import { ProductRead } from "@/lib/types";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
@@ -11,6 +11,7 @@ import { LayoutDashboard, Package, ShoppingBag } from "lucide-react";
 export default function StoreAdminPage() {
   const [products, setProducts] = useState<ProductRead[]>([]);
   const [loading, setLoading] = useState(true);
+  const { logout } = useAuth();
 
   useEffect(() => {
     apiFetch<ProductRead[]>("/admin/products")
@@ -19,8 +20,8 @@ export default function StoreAdminPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleLogout = () => {
-    clearAccessToken();
+  const handleLogout = async () => {
+    await logout();
     window.location.href = "/login";
   };
 
@@ -74,7 +75,7 @@ export default function StoreAdminPage() {
         <main className="flex-1 p-6">
           <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
           <p className="text-muted-foreground mb-6">
-            Welcome back! Here's an overview of your store.
+            Welcome back! Here&apos;s an overview of your store.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
