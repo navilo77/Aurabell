@@ -48,6 +48,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+coverage/
 
 # Node & Next.js
 node_modules/
@@ -58,6 +59,9 @@ yarn-error.log*
 .next/
 out/
 .vercel
+playwright-report/
+test-results/
+*.tsbuildinfo
 
 # IDE & Editor files
 .vscode/*
@@ -85,7 +89,6 @@ supabase/.branches/
 supabase/.temp/
 
 # Misc generated artifacts
-"tatus --short"
 
 # Agent configs & proposals (local, not committed)
 AGENT_RULES.md
