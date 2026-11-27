@@ -300,6 +300,31 @@ class TestLoginCookieAttributes:
         else:
             assert "Secure" not in access
 
+    @pytest.mark.asyncio
+    async def test_refresh_cookie_max_age_is_long(self) -> None:
+        """Refresh cookie Max-Age must be >= 1 day (P-21 regression guard)."""
+        import re
+        from app.modules.auth.router import login
+        from app.modules.auth.schema import Token, UserLogin
+        from fastapi import Response
+
+        token = Token(access_token="a", refresh_token="r", expires_in=900)
+        auth_service = MagicMock()
+        auth_service.login = AsyncMock(return_value=token)
+
+        response = Response()
+        with patch("app.modules.auth.router.get_auth_service", return_value=auth_service):
+            await login(
+                UserLogin(email="user@example.com", password="TestPass123!"),
+                response,
+            )
+
+        headers = response.headers.getlist("set-cookie")
+        refresh = next(h for h in headers if h.startswith("aura_refresh_token="))
+        match = re.search(r"Max-Age=(\d+)", refresh)
+        assert match is not None
+        assert int(match.group(1)) >= 86400
+
 
 # ─── Registration + Profile Creation ────────────────────────────────────────
 

@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     # payment redirects (cross-site top-level navigation).
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_COOKIE_DOMAIN: str | None = None
-    SESSION_COOKIE_MAX_AGE: int = 3600
+    SESSION_COOKIE_MAX_AGE: int = 604800
 
     model_config = SettingsConfigDict(
         env_file=".env",
