@@ -23,10 +23,11 @@ class OrderCreate(BaseModel):
     """Schema for creating an order via checkout."""
 
     cart_id: str = Field(..., description="Cart UUID to convert to order")
-    delivery_address_id: str | None = Field(None, description="Delivery address ID (optional)")
+    delivery_address_id: str | None = Field(None, description="Saved delivery address ID (optional)")
+    address: OrderAddressCreate | None = Field(None, description="Inline delivery address (optional)")
     payment_method: str = Field(..., description="Payment method: 'cod', 'bkash', 'sslcommerz'")
     coupon_code: str | None = Field(None, max_length=50, description="Optional coupon code")
-    district: str | None = Field(None, max_length=100, description="District for delivery fee")
+    district: str | None = Field(None, max_length=100, description="District for delivery fee (derived from address if not provided)")
 
 
 class OrderAddressCreate(BaseModel):
@@ -43,6 +44,20 @@ class OrderAddressCreate(BaseModel):
     address_type: str = Field(default="delivery", description="'delivery', 'billing', or 'both'")
 
 
+class OrderAddressRead(BaseModel):
+    """Schema for returning an order address snapshot (immutable)."""
+
+    recipient_name: str
+    phone: str
+    division: str
+    district: str
+    upazila: str | None = None
+    area: str | None = None
+    address_line: str
+    postal_code: str | None = None
+    address_type: str = "delivery"
+
+
 class OrderRead(BaseModel):
     """Schema for returning an order with parent and store order details."""
 
@@ -56,6 +71,7 @@ class OrderRead(BaseModel):
     currency_code: str = "BDT"
     order_status: str
     created_at: str
+    delivery_address: OrderAddressRead | None = None
     store_orders: list["OrderRead"] = []
     order_items: list["OrderItemRead"] = []
 
@@ -89,9 +105,24 @@ class CODVerifyResponse(BaseModel):
     message: str
 
 
-class DistrictDeliveryFee(BaseModel):
-    """Schema for district-based delivery fee calculation."""
+class OrderTimelineEntry(BaseModel):
+    """Schema for a single order status history entry."""
 
-    district: str
-    fee: Decimal
-    is_dhaka_metro: bool
+    old_status: str | None = None
+    new_status: str
+    changed_by: str | None = None
+    note: str | None = None
+    created_at: str
+
+
+class OrderCancelRequest(BaseModel):
+    """Schema for order cancellation request (no body needed, but defined for contract)."""
+
+    pass
+
+
+class OrderStatusUpdateRequest(BaseModel):
+    """Schema for admin store order status update."""
+
+    status: str = Field(..., description="New status: pending, confirmed, processing, shipped, delivered, cancelled")
+    note: str | None = Field(None, max_length=500, description="Optional note for status change")

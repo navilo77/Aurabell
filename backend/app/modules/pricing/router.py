@@ -34,8 +34,10 @@ def get_pricing_service(db: AsyncSession = Depends(get_db)) -> PricingService:
     return PricingService(db)
 
 
-AdminUser = Annotated[User, Depends(require_role("admin", "owner"))]
 Service = Annotated[PricingService, Depends(get_pricing_service)]
+
+
+# ─── Admin Price CRUD (store-scoped) ──────────────────────────────────────
 
 
 @router.post(
@@ -44,8 +46,8 @@ Service = Annotated[PricingService, Depends(get_pricing_service)]
     status_code=status.HTTP_201_CREATED,
     summary="Create a BDT price for a product variant",
 )
-async def create_price(data: PriceCreate, service: Service, user: AdminUser) -> PriceRead:
-    return await service.create_price(data)
+async def create_price(data: PriceCreate, service: Service, user: User = Depends(require_role("store_manager", "super_admin"))) -> PriceRead:
+    return await service.create_price(data, user)
 
 
 @router.patch(
@@ -57,9 +59,9 @@ async def update_price(
     price_id: UUID,
     data: PriceUpdate,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> PriceRead:
-    return await service.update_price(price_id, data)
+    return await service.update_price(price_id, data, user)
 
 
 @router.delete(
@@ -67,9 +69,12 @@ async def update_price(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Deactivate a product variant price",
 )
-async def deactivate_price(price_id: UUID, service: Service, user: AdminUser) -> Response:
-    await service.deactivate_price(price_id)
+async def deactivate_price(price_id: UUID, service: Service, user: User = Depends(require_role("store_manager", "super_admin"))) -> Response:
+    await service.deactivate_price(price_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ─── Admin Promotion CRUD (store-scoped via promotion_stores) ────────────────
 
 
 @router.post(
@@ -81,9 +86,9 @@ async def deactivate_price(price_id: UUID, service: Service, user: AdminUser) ->
 async def create_promotion(
     data: PromotionCreate,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> PromotionRead:
-    return await service.create_promotion(data)
+    return await service.create_promotion(data, user)
 
 
 @router.patch(
@@ -95,9 +100,9 @@ async def update_promotion(
     promotion_id: UUID,
     data: PromotionUpdate,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> PromotionRead:
-    return await service.update_promotion(promotion_id, data)
+    return await service.update_promotion(promotion_id, data, user)
 
 
 @router.delete(
@@ -108,9 +113,9 @@ async def update_promotion(
 async def deactivate_promotion(
     promotion_id: UUID,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> Response:
-    await service.deactivate_promotion(promotion_id)
+    await service.deactivate_promotion(promotion_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -123,9 +128,9 @@ async def add_promotion_product(
     promotion_id: UUID,
     data: PromotionProductMap,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> Response:
-    await service.add_product_to_promotion(promotion_id, data.product_id)
+    await service.add_product_to_promotion(promotion_id, data.product_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -138,9 +143,9 @@ async def remove_promotion_product(
     promotion_id: UUID,
     product_id: UUID,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> Response:
-    await service.remove_product_from_promotion(promotion_id, product_id)
+    await service.remove_product_from_promotion(promotion_id, product_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -153,9 +158,9 @@ async def add_promotion_store(
     promotion_id: UUID,
     data: PromotionStoreMap,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> Response:
-    await service.add_store_to_promotion(promotion_id, data.store_id)
+    await service.add_store_to_promotion(promotion_id, data.store_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -168,9 +173,9 @@ async def remove_promotion_store(
     promotion_id: UUID,
     store_id: UUID,
     service: Service,
-    user: AdminUser,
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ) -> Response:
-    await service.remove_store_from_promotion(promotion_id, store_id)
+    await service.remove_store_from_promotion(promotion_id, store_id, user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

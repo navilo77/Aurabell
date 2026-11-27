@@ -5,9 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import require_role
+from app.core.auth import User, require_role
 from app.core.database import get_db
-from app.core.exceptions import AuthError
+from app.core.exceptions import AuthError, PermissionDenied
 from app.modules.categories.schema import (
     CategoryCreate,
     CategoryRead,
@@ -39,9 +39,19 @@ def get_categories_service(db: AsyncSession = Depends(get_db)):
 async def create_category(
     data: CategoryCreate,
     service: CategoriesService = Depends(get_categories_service),
-    _user=Depends(require_role("store_manager", "super_admin")),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Create a new category (root or child)."""
+    # Check store access for store_manager
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if data.store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
         return await service.create_category(data)
     except AuthError as e:
@@ -59,7 +69,7 @@ async def create_category(
 async def get_category(
     category_id: str = Path(..., description="Category UUID"),
     service: CategoriesService = Depends(get_categories_service),
-    _user=Depends(require_role("store_manager", "super_admin")),
+    user=Depends(require_role("store_manager", "super_admin")),
 ):
     """Get a category by ID."""
     try:
@@ -80,7 +90,7 @@ async def update_category(
     data: CategoryUpdate,
     category_id: str = Path(..., description="Category UUID"),
     service: CategoriesService = Depends(get_categories_service),
-    _user=Depends(require_role("store_manager", "super_admin")),
+    user=Depends(require_role("store_manager", "super_admin")),
 ):
     """Update a category. All fields optional (partial update)."""
     try:
@@ -100,7 +110,7 @@ async def update_category(
 async def delete_category(
     category_id: str = Path(..., description="Category UUID"),
     service: CategoriesService = Depends(get_categories_service),
-    _user=Depends(require_role("store_manager", "super_admin")),
+    user=Depends(require_role("store_manager", "super_admin")),
 ):
     """Soft delete a category (sets is_active = false)."""
     try:
@@ -112,7 +122,23 @@ async def delete_category(
         ) from e
 
 
-# ─── Public Tree ──────────────────────────────────────────────────────────────
+@public_router.get(
+    "/{category_id}",
+    response_model=CategoryRead,
+    summary="Get category by ID (public)",
+)
+async def get_public_category(
+    category_id: str = Path(..., description="Category UUID"),
+    service: CategoriesService = Depends(get_categories_service),
+):
+    """Get a category by ID (public view)."""
+    try:
+        return await service.get_category(category_id)
+    except AuthError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"detail": e.message, "code": e.code},
+        ) from e
 
 @public_router.get(
     "",

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import text
 
-from app.core.auth import get_current_user, require_role
+from app.core.auth import User, get_current_user, require_role
 from app.core.database import get_db
-from app.core.exceptions import AuthError
+from app.core.exceptions import AuthError, PermissionDenied
 from app.modules.categories.schema import CategoryTree
 from app.modules.categories.service import CategoriesService
 from app.modules.stores.schema import (
@@ -44,7 +44,7 @@ def get_stores_service(db = Depends(get_db)):
 async def create_store(
     data: StoreCreate,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(require_role("store_manager", "super_admin")),
+    user=Depends(require_role("store_manager", "super_admin")),
 ):
     """Create a new store."""
     try:
@@ -58,14 +58,64 @@ async def create_store(
 
 @router.get(
     "",
-    response_model=list[StoreRead],
     summary="List all stores",
 )
 async def list_stores(
+    page: int = Query(default=1, ge=1, description="Page number"),
+    per_page: int = Query(default=20, ge=1, le=100, description="Items per page"),
+    status: str | None = Query(None, description="Filter by store status"),
+    format: str | None = Query(None, description="Response format: 'v2' for paginated {data, meta}"),
     service: StoresService = Depends(get_stores_service),
 ):
-    """List all stores."""
-    return await service.list_stores()
+    """List all stores with optional status filtering and pagination."""
+    # Build WHERE clause
+    where_clauses = []
+    params: dict = {}
+
+    if status:
+        where_clauses.append("status = :status")
+        params["status"] = status
+
+    where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
+
+    # Count total
+    count_query = f"SELECT COUNT(*) FROM stores WHERE {where_sql}"
+    count_result = await service.db.execute(text(count_query), params)
+    total = count_result.scalar() or 0
+
+    # Fetch stores
+    offset = (page - 1) * per_page
+    result = await service.db.execute(
+        text(
+            f"""
+            SELECT id, name, slug, description, logo_url, primary_color, status, created_at, updated_at
+            FROM stores
+            WHERE {where_sql}
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+            """
+        ),
+        {**params, "limit": per_page, "offset": offset},
+    )
+    rows = result.mappings().all()
+    stores = [
+        StoreRead(
+            id=str(row["id"]),
+            name=row["name"],
+            slug=row["slug"],
+            description=row["description"],
+            logo_url=row["logo_url"],
+            primary_color=row["primary_color"],
+            status=row["status"],
+            created_at=str(row["created_at"]) if row["created_at"] else None,
+            updated_at=str(row["updated_at"]) if row["updated_at"] else None,
+            policies=[],
+        )
+        for row in rows
+    ]
+
+    from app.core.pagination import paginate
+    return paginate(stores, total, page, per_page, format)
 
 
 @router.get(
@@ -76,7 +126,7 @@ async def list_stores(
 async def get_store(
     store_id: str,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
     """Get store by ID."""
     try:
@@ -116,9 +166,18 @@ async def update_store(
     store_id: str,
     data: StoreUpdate,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Update store."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
         return await service.update_store(store_id, data)
     except AuthError as e:
@@ -136,9 +195,18 @@ async def update_store(
 async def delete_store(
     store_id: str,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(require_role("store_manager", "super_admin")),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Delete store."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
         await service.delete_store(store_id)
     except AuthError as e:
@@ -157,9 +225,18 @@ async def update_store_status(
     store_id: str,
     status: str,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(require_role("store_manager", "super_admin")),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Update store status (active/inactive)."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
         return await service.update_store_status(store_id, status)
     except AuthError as e:
@@ -180,9 +257,18 @@ async def update_store_banner(
     store_id: str,
     data: StoreBannerUpdate,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(require_role("store_manager", "super_admin")),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Update store banner."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     # Note: StoreBannerUpdate is a separate schema for banner URL validation
     # The actual implementation would handle banner upload/update logic
     # For now, we'll delegate to update_store with banner_url
@@ -227,11 +313,20 @@ async def create_return_policy(
     store_id: str,
     data: ReturnPolicyCreate,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Create return policy for store."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
-        return await service.create_return_policy(store_id, data)
+        return await service.create_return_policy(store_id, data, user)
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -249,11 +344,20 @@ async def create_warranty_policy(
     store_id: str,
     data: WarrantyPolicyCreate,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Create warranty policy for store."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
-        return await service.create_warranty_policy(store_id, data)
+        return await service.create_warranty_policy(store_id, data, user)
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -271,11 +375,20 @@ async def create_terms_conditions(
     store_id: str,
     data: TermsConditionsCreate,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Create terms and conditions for store."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
-        return await service.create_terms_conditions(store_id, data)
+        return await service.create_terms_conditions(store_id, data, user)
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -291,11 +404,20 @@ async def create_terms_conditions(
 async def get_store_policies(
     store_id: str,
     service: StoresService = Depends(get_stores_service),
-    user = Depends(get_current_user),
+    user: User = Depends(require_role("store_manager", "super_admin")),
 ):
     """Get all policies for a store."""
+    if "super_admin" not in user.roles and "store_manager" in user.roles:
+        if store_id not in (user.store_ids or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PermissionDenied(
+                    required_roles=["store_manager", "super_admin"],
+                    user_roles=user.roles,
+                ).message,
+            )
     try:
-        return await service.get_store_policies(store_id)
+        return await service.get_store_policies(store_id, user)
     except AuthError as e:
         raise HTTPException(
             status_code=e.status_code,

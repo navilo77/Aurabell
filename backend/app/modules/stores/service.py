@@ -242,8 +242,28 @@ class StoresService:
 
     # ─── Store Policies ───────────────────────────────────────────────────────
 
-    async def create_return_policy(self, store_id: str, data: ReturnPolicyCreate) -> PolicyRead:
+    def _check_store_access(self, store_id: str, user: User) -> None:
+        """Verify user has access to the store (store_manager must own store; super_admin bypasses)."""
+        if "super_admin" not in user.roles:
+            if "store_manager" in user.roles:
+                if store_id not in (user.store_ids or []):
+                    raise AuthError(
+                        message="Access denied to store",
+                        code="PERMISSION_DENIED",
+                        status_code=403,
+                    )
+            else:
+                raise AuthError(
+                    message="Insufficient permissions for store operation",
+                    code="PERMISSION_DENIED",
+                    status_code=403,
+                )
+
+    async def create_return_policy(
+        self, store_id: str, data: ReturnPolicyCreate, user: User
+    ) -> PolicyRead:
         """Create return policy for store."""
+        self._check_store_access(store_id, user)
         # Verify store exists
         store_result = await self.db.execute(
             text("SELECT id FROM stores WHERE id = :store_id"),
@@ -279,8 +299,11 @@ class StoresService:
             updated_at=str(row["updated_at"]),
         )
 
-    async def create_warranty_policy(self, store_id: str, data: WarrantyPolicyCreate) -> PolicyRead:
+    async def create_warranty_policy(
+        self, store_id: str, data: WarrantyPolicyCreate, user: User
+    ) -> PolicyRead:
         """Create warranty policy for store."""
+        self._check_store_access(store_id, user)
         # Verify store exists
         store_result = await self.db.execute(
             text("SELECT id FROM stores WHERE id = :store_id"),
@@ -316,8 +339,11 @@ class StoresService:
             updated_at=str(row["updated_at"]),
         )
 
-    async def create_terms_conditions(self, store_id: str, data: TermsConditionsCreate) -> PolicyRead:
+    async def create_terms_conditions(
+        self, store_id: str, data: TermsConditionsCreate, user: User
+    ) -> PolicyRead:
         """Create terms and conditions for store."""
+        self._check_store_access(store_id, user)
         # Verify store exists
         store_result = await self.db.execute(
             text("SELECT id FROM stores WHERE id = :store_id"),
@@ -353,8 +379,9 @@ class StoresService:
             updated_at=str(row["updated_at"]),
         )
 
-    async def get_store_policies(self, store_id: str) -> list[PolicyRead]:
+    async def get_store_policies(self, store_id: str, user: User) -> list[PolicyRead]:
         """Get all policies for a store."""
+        self._check_store_access(store_id, user)
         result = await self.db.execute(
             text(
                 "SELECT id, store_id, policy_type, policy_content, is_active, "

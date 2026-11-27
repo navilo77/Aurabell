@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import User
 from app.core.exceptions import AuthError
 from app.modules.pricing.schema import (
     PriceCalculationRead,
@@ -44,7 +45,66 @@ class PricingService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def create_price(self, data: PriceCreate) -> PriceRead:
+    def _check_store_access(self, store_id: UUID | str, user: User) -> None:
+        """Verify user has access to the store (store_manager must own store; super_admin bypasses)."""
+        store_id_str = str(store_id)
+        if "super_admin" not in user.roles:
+            if "store_manager" in user.roles:
+                if store_id_str not in (user.store_ids or []):
+                    raise AuthError(
+                        message="Access denied to store",
+                        code="PERMISSION_DENIED",
+                        status_code=403,
+                    )
+            else:
+                raise AuthError(
+                    message="Insufficient permissions for store operation",
+                    code="PERMISSION_DENIED",
+                    status_code=403,
+                )
+
+    async def _get_variant_store_id(self, variant_id: UUID) -> UUID | None:
+        """Get the store_id for a variant via variant -> product -> store."""
+        result = await self.db.execute(
+            text("""
+                SELECT p.store_id
+                FROM public.product_variants v
+                JOIN public.products p ON p.id = v.product_id
+                WHERE v.id = :variant_id
+            """),
+            {"variant_id": variant_id},
+        )
+        return result.scalar_one_or_none()
+
+    async def _get_price_store_id(self, price_id: UUID) -> UUID | None:
+        """Get the store_id for a price via price -> variant -> product -> store."""
+        result = await self.db.execute(
+            text("""
+                SELECT p.store_id
+                FROM public.product_prices pp
+                JOIN public.product_variants v ON v.id = pp.variant_id
+                JOIN public.products p ON p.id = v.product_id
+                WHERE pp.id = :price_id
+            """),
+            {"price_id": price_id},
+        )
+        return result.scalar_one_or_none()
+
+    def _check_store_access_by_variant(self, variant_id: UUID, user: User) -> None:
+        """Check store access for a variant's store."""
+        store_id = self._get_variant_store_id(variant_id)
+        # Note: this is called after the variant check, so we need to run it
+        # Actually, let's just pass the user and check inside
+
+    # ─── Price CRUD ──────────────────────────────────────────────────────────
+
+    async def create_price(self, data: PriceCreate, user: User) -> PriceRead:
+        # Check store access via variant
+        store_id = await self._get_variant_store_id(data.variant_id)
+        if store_id is None:
+            raise PricingError("Product variant not found", "VARIANT_NOT_FOUND", 404)
+        self._check_store_access(store_id, user)
+
         effective_from = data.effective_from or datetime.now(timezone.utc)
         if data.effective_until is not None and data.effective_until <= effective_from:
             raise PricingError(
@@ -84,7 +144,12 @@ class PricingService:
             ) from exc
         return PriceRead.model_validate(result.mappings().one())
 
-    async def update_price(self, price_id: UUID, data: PriceUpdate) -> PriceRead:
+    async def update_price(self, price_id: UUID, data: PriceUpdate, user: User) -> PriceRead:
+        store_id = await self._get_price_store_id(price_id)
+        if store_id is None:
+            raise PricingError("Price not found", "PRICE_NOT_FOUND", 404)
+        self._check_store_access(store_id, user)
+
         current = await self._get_price(price_id)
         changes = data.model_dump(exclude_unset=True)
         selling_price = changes.get("selling_price", current["selling_price"])
@@ -122,7 +187,12 @@ class PricingService:
         await self.db.commit()
         return PriceRead.model_validate(row)
 
-    async def deactivate_price(self, price_id: UUID) -> None:
+    async def deactivate_price(self, price_id: UUID, user: User) -> None:
+        store_id = await self._get_price_store_id(price_id)
+        if store_id is None:
+            raise PricingError("Active price not found", "PRICE_NOT_FOUND", 404)
+        self._check_store_access(store_id, user)
+
         result = await self.db.execute(
             text("""
                 UPDATE public.product_prices
@@ -136,7 +206,61 @@ class PricingService:
             raise PricingError("Active price not found", "PRICE_NOT_FOUND", 404)
         await self.db.commit()
 
-    async def create_promotion(self, data: PromotionCreate) -> PromotionRead:
+    async def _get_price(self, price_id: UUID):
+        result = await self.db.execute(
+            text("""
+                SELECT id, variant_id, currency_code, selling_price, compare_at_price,
+                       effective_from, effective_until, is_active, created_at
+                FROM public.product_prices
+                WHERE id = :price_id
+            """),
+            {"price_id": price_id},
+        )
+        row = result.mappings().one_or_none()
+        if row is None:
+            raise PricingError("Price not found", "PRICE_NOT_FOUND", 404)
+        return row
+
+    # ─── Promotion CRUD ──────────────────────────────────────────────────────
+
+    async def _check_promotion_store_access(self, promotion_id: UUID, user: User) -> None:
+        """Check if user has access to at least one store mapped to the promotion."""
+        result = await self.db.execute(
+            text("""
+                SELECT ps.store_id
+                FROM public.promotion_stores ps
+                WHERE ps.promotion_id = :promotion_id
+            """),
+            {"promotion_id": promotion_id},
+        )
+        store_ids = [str(row[0]) for row in result.fetchall()]
+        if not store_ids:
+            # Promotion not mapped to any store - only super_admin can manage
+            if "super_admin" not in user.roles:
+                raise AuthError(
+                    message="Promotion not mapped to any accessible store",
+                    code="PERMISSION_DENIED",
+                    status_code=403,
+                )
+            return
+        # Check if user has access to at least one of the promotion's stores
+        if "super_admin" not in user.roles:
+            if "store_manager" in user.roles:
+                user_store_ids = set(user.store_ids or [])
+                if not user_store_ids.intersection(store_ids):
+                    raise AuthError(
+                        message="Access denied to promotion's stores",
+                        code="PERMISSION_DENIED",
+                        status_code=403,
+                    )
+            else:
+                raise AuthError(
+                    message="Insufficient permissions for promotion operation",
+                    code="PERMISSION_DENIED",
+                    status_code=403,
+                )
+
+    async def create_promotion(self, data: PromotionCreate, user: User) -> PromotionRead:
         try:
             result = await self.db.execute(
                 text("""
@@ -161,7 +285,9 @@ class PricingService:
             ) from exc
         return PromotionRead.model_validate(result.mappings().one())
 
-    async def update_promotion(self, promotion_id: UUID, data: PromotionUpdate) -> PromotionRead:
+    async def update_promotion(self, promotion_id: UUID, data: PromotionUpdate, user: User) -> PromotionRead:
+        self._check_promotion_store_access(promotion_id, user)
+
         current_result = await self.db.execute(
             text("""
                 SELECT id, name, coupon_code, discount_type, discount_value, start_at, end_at, is_active
@@ -206,7 +332,9 @@ class PricingService:
             ) from exc
         return PromotionRead.model_validate(result.mappings().one())
 
-    async def deactivate_promotion(self, promotion_id: UUID) -> None:
+    async def deactivate_promotion(self, promotion_id: UUID, user: User) -> None:
+        self._check_promotion_store_access(promotion_id, user)
+
         result = await self.db.execute(
             text("""
                 UPDATE public.promotions
@@ -220,24 +348,8 @@ class PricingService:
             raise PricingError("Active promotion not found", "PROMOTION_NOT_FOUND", 404)
         await self.db.commit()
 
-    async def add_product_to_promotion(self, promotion_id: UUID, product_id: UUID) -> None:
-        await self._add_mapping(
-            promotion_id,
-            product_id,
-            target_table="promotion_products",
-            target_column="product_id",
-            target_table_name="products",
-        )
-
-    async def remove_product_from_promotion(self, promotion_id: UUID, product_id: UUID) -> None:
-        await self._remove_mapping(
-            promotion_id,
-            product_id,
-            target_table="promotion_products",
-            target_column="product_id",
-        )
-
-    async def add_store_to_promotion(self, promotion_id: UUID, store_id: UUID) -> None:
+    async def add_store_to_promotion(self, promotion_id: UUID, store_id: UUID, user: User) -> None:
+        self._check_store_access(store_id, user)
         await self._add_mapping(
             promotion_id,
             store_id,
@@ -246,12 +358,33 @@ class PricingService:
             target_table_name="stores",
         )
 
-    async def remove_store_from_promotion(self, promotion_id: UUID, store_id: UUID) -> None:
+    async def remove_store_from_promotion(self, promotion_id: UUID, store_id: UUID, user: User) -> None:
+        self._check_store_access(store_id, user)
+        self._check_promotion_store_access(promotion_id, user)
         await self._remove_mapping(
             promotion_id,
             store_id,
             target_table="promotion_stores",
             target_column="store_id",
+        )
+
+    async def add_product_to_promotion(self, promotion_id: UUID, product_id: UUID, user: User) -> None:
+        await self._check_promotion_store_access(promotion_id, user)
+        await self._add_mapping(
+            promotion_id,
+            product_id,
+            target_table="promotion_products",
+            target_column="product_id",
+            target_table_name="products",
+        )
+
+    async def remove_product_from_promotion(self, promotion_id: UUID, product_id: UUID, user: User) -> None:
+        await self._check_promotion_store_access(promotion_id, user)
+        await self._remove_mapping(
+            promotion_id,
+            product_id,
+            target_table="promotion_products",
+            target_column="product_id",
         )
 
     async def _add_mapping(
@@ -324,6 +457,8 @@ class PricingService:
         if result.scalar_one_or_none() is None:
             raise PricingError("Promotion mapping not found", "MAPPING_NOT_FOUND", 404)
         await self.db.commit()
+
+    # ─── Price Calculation & Validation ──────────────────────────────────────
 
     async def calculate_price(
         self,
@@ -446,19 +581,5 @@ class PricingService:
             expected_price=calculation.final_price,
             provided_price=provided_price,
             promotion_id=calculation.promotion_id,
+            coupon_code=calculation.coupon_code,
         )
-
-    async def _get_price(self, price_id: UUID):
-        result = await self.db.execute(
-            text("""
-                SELECT id, variant_id, currency_code, selling_price, compare_at_price,
-                       effective_from, effective_until, is_active, created_at
-                FROM public.product_prices
-                WHERE id = :price_id
-            """),
-            {"price_id": price_id},
-        )
-        row = result.mappings().one_or_none()
-        if row is None:
-            raise PricingError("Price not found", "PRICE_NOT_FOUND", 404)
-        return row

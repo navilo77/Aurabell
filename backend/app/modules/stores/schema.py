@@ -45,7 +45,7 @@ class StoreUpdate(BaseModel):
 class StoreBannerUpdate(BaseModel):
     """Schema for updating store banner."""
 
-    banner_url: str = Field(..., pattern="^https?://$")
+    banner_url: str = Field(..., pattern=r"^https?://.+")
 
 
 class ReturnPolicyCreate(BaseModel):

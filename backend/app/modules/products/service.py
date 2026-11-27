@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import User
 from app.core.exceptions import AuthError
 from app.modules.products.schema import (
     ImageCreate,
@@ -50,6 +51,23 @@ class ProductsService:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    def _check_store_access(self, store_id: str, user: User) -> None:
+        """Verify user has access to the store (store_manager must own store; super_admin bypasses)."""
+        if "super_admin" not in user.roles:
+            if "store_manager" in user.roles:
+                if store_id not in (user.store_ids or []):
+                    raise AuthError(
+                        message="Access denied to store",
+                        code="PERMISSION_DENIED",
+                        status_code=403,
+                    )
+            else:
+                raise AuthError(
+                    message="Insufficient permissions for store operation",
+                    code="PERMISSION_DENIED",
+                    status_code=403,
+                )
 
     # ─── SKU Generation ────────────────────────────────────────────────────
 
@@ -136,7 +154,30 @@ class ProductsService:
             images=images,
         )
 
-    async def _get_variants(self, product_id: str) -> list:
+    async def _get_variants(self, product_id: str, user: User | None = None) -> list:
+        # If user provided, verify store access via product's store_id
+        if user is not None:
+            result = await self.db.execute(
+                text("SELECT store_id FROM products WHERE id = :product_id"),
+                {"product_id": product_id},
+            )
+            store_id = result.scalar_one_or_none()
+            if store_id:
+                if "super_admin" not in user.roles:
+                    if "store_manager" in user.roles:
+                        if str(store_id) not in (user.store_ids or []):
+                            raise AuthError(
+                                message="Access denied to store",
+                                code="PERMISSION_DENIED",
+                                status_code=403,
+                            )
+                    else:
+                        raise AuthError(
+                            message="Insufficient permissions for store operation",
+                            code="PERMISSION_DENIED",
+                            status_code=403,
+                        )
+
         result = await self.db.execute(
             text(
                 "SELECT id, product_id, sku, variant_name, attributes, barcode, "
@@ -183,7 +224,7 @@ class ProductsService:
             for r in rows
         ]
 
-    async def _get_product_full(self, product_id: str) -> ProductRead:
+    async def _get_product_full(self, product_id: str, user: User | None = None) -> ProductRead:
         result = await self.db.execute(
             text(
                 "SELECT id, store_id, category_id, name, slug, description, brand, "
@@ -197,7 +238,24 @@ class ProductsService:
             raise AuthError(
                 message="Product not found", code="NOT_FOUND", status_code=404
             )
-        variants = await self._get_variants(product_id)
+        # Check store access if user provided
+        if user is not None:
+            store_id = row["store_id"]
+            if "super_admin" not in user.roles:
+                if "store_manager" in user.roles:
+                    if str(store_id) not in (user.store_ids or []):
+                        raise AuthError(
+                            message="Access denied to store",
+                            code="PERMISSION_DENIED",
+                            status_code=403,
+                        )
+                else:
+                    raise AuthError(
+                        message="Insufficient permissions for store operation",
+                        code="PERMISSION_DENIED",
+                        status_code=403,
+                    )
+        variants = await self._get_variants(product_id, user)
         images = await self._get_images(product_id)
         return self._row_to_read(row, variants, images)
 
@@ -313,17 +371,40 @@ class ProductsService:
 
     # ─── Read ───────────────────────────────────────────────────────────────
 
-    async def get_product(self, product_id: str) -> ProductRead:
-        return await self._get_product_full(product_id)
+    async def get_product(self, product_id: str, user: User | None = None) -> ProductRead:
+        return await self._get_product_full(product_id, user)
 
     # ─── Update ─────────────────────────────────────────────────────────────
 
     async def update_product(
-        self, product_id: str, data: ProductUpdate
+        self, product_id: str, data: ProductUpdate, user: User | None = None
     ) -> ProductRead:
+        # Check store access
+        if user is not None:
+            result = await self.db.execute(
+                text("SELECT store_id FROM products WHERE id = :product_id"),
+                {"product_id": product_id},
+            )
+            store_id = result.scalar_one_or_none()
+            if store_id:
+                if "super_admin" not in user.roles:
+                    if "store_manager" in user.roles:
+                        if str(store_id) not in (user.store_ids or []):
+                            raise AuthError(
+                                message="Access denied to store",
+                                code="PERMISSION_DENIED",
+                                status_code=403,
+                            )
+                    else:
+                        raise AuthError(
+                            message="Insufficient permissions for store operation",
+                            code="PERMISSION_DENIED",
+                            status_code=403,
+                        )
+
         update_data = data.model_dump(exclude_unset=True)
         if not update_data:
-            return await self._get_product_full(product_id)
+            return await self._get_product_full(product_id, user)
 
         if "slug" in update_data and update_data["slug"]:
             store_id = await self._get_store_id_for_product(product_id)
@@ -355,7 +436,7 @@ class ProductsService:
         )
         await self.db.commit()
 
-        return await self._get_product_full(product_id)
+        return await self._get_product_full(product_id, user)
 
     async def _get_store_id_for_product(self, product_id: str) -> str:
         result = await self.db.execute(
@@ -371,7 +452,30 @@ class ProductsService:
 
     # ─── Delete (Soft) ──────────────────────────────────────────────────────
 
-    async def delete_product(self, product_id: str) -> None:
+    async def delete_product(self, product_id: str, user: User | None = None) -> None:
+        # Check store access
+        if user is not None:
+            result = await self.db.execute(
+                text("SELECT store_id FROM products WHERE id = :product_id"),
+                {"product_id": product_id},
+            )
+            store_id = result.scalar_one_or_none()
+            if store_id:
+                if "super_admin" not in user.roles:
+                    if "store_manager" in user.roles:
+                        if str(store_id) not in (user.store_ids or []):
+                            raise AuthError(
+                                message="Access denied to store",
+                                code="PERMISSION_DENIED",
+                                status_code=403,
+                            )
+                    else:
+                        raise AuthError(
+                            message="Insufficient permissions for store operation",
+                            code="PERMISSION_DENIED",
+                            status_code=403,
+                        )
+
         result = await self.db.execute(
             text(
                 "UPDATE products SET status = 'archived', updated_at = :updated_at "
@@ -392,27 +496,86 @@ class ProductsService:
         store_id: str | None = None,
         category_id: str | None = None,
         search: str | None = None,
+        brand: str | None = None,
+        min_price: float | None = None,
+        max_price: float | None = None,
+        sort: str | None = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> list[ProductRead]:
-        query = (
-            "SELECT id, store_id, category_id, name, slug, description, brand, "
-            "product_type, status, is_featured, created_at, updated_at "
-            "FROM products WHERE status = 'active'"
-        )
-        params: dict = {"limit": limit, "offset": offset}
+        page: int = 1,
+        format_param: str | None = None,
+    ) -> list | dict:
+        # Build WHERE clause
+        where_clauses = ["status = 'active'"]
+        params: dict = {}
 
         if store_id:
-            query += " AND store_id = :store_id"
+            where_clauses.append("store_id = :store_id")
             params["store_id"] = store_id
         if category_id:
-            query += " AND category_id = :category_id"
+            where_clauses.append("category_id = :category_id")
             params["category_id"] = category_id
         if search:
-            query += " AND name ILIKE :search"
+            where_clauses.append("(name ILIKE :search OR description ILIKE :search OR brand ILIKE :search)")
             params["search"] = f"%{search}%"
+        if brand:
+            where_clauses.append("brand = :brand")
+            params["brand"] = brand
 
-        query += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+        # Price filtering via subquery on product_prices
+        if min_price is not None or max_price is not None:
+            price_subquery = (
+                "id IN (SELECT pv.product_id FROM product_variants pv "
+                "JOIN product_prices pp ON pp.variant_id = pv.id WHERE "
+            )
+            price_conditions = []
+            if min_price is not None:
+                price_conditions.append("pp.selling_price >= :min_price")
+                params["min_price"] = min_price
+            if max_price is not None:
+                price_conditions.append("pp.selling_price <= :max_price")
+                params["max_price"] = max_price
+            price_subquery += " AND ".join(price_conditions) + ")"
+            where_clauses.append(price_subquery)
+
+        where_sql = " AND ".join(where_clauses)
+
+        # Count total
+        count_query = f"SELECT COUNT(*) FROM products WHERE {where_sql}"
+        count_result = await self.db.execute(text(count_query), params)
+        total = count_result.scalar() or 0
+
+        # Sorting
+        if sort:
+            sort_parts = sort.split(":")
+            field = sort_parts[0]
+            direction = sort_parts[1] if len(sort_parts) > 1 else "asc"
+            desc = "DESC" if direction == "desc" else "ASC"
+
+            if field == "price":
+                order_clause = f"""ORDER BY (
+                    SELECT COALESCE(MIN(pp.selling_price), 0)
+                    FROM product_prices pp
+                    WHERE pp.variant_id IN (
+                        SELECT pv.id FROM product_variants pv WHERE pv.product_id = products.id
+                    )
+                ) {desc}"""
+            elif field in ("name", "created_at", "updated_at"):
+                order_clause = f"ORDER BY {field} {desc}"
+            else:
+                order_clause = "ORDER BY created_at DESC"
+        else:
+            order_clause = "ORDER BY created_at DESC"
+
+        # Fetch products
+        query = (
+            f"SELECT id, store_id, category_id, name, slug, description, brand, "
+            f"product_type, status, is_featured, created_at, updated_at "
+            f"FROM products WHERE {where_sql} "
+            f"{order_clause} LIMIT :limit OFFSET :offset"
+        )
+        params["limit"] = limit
+        params["offset"] = offset
 
         result = await self.db.execute(text(query), params)
         rows = result.mappings().all()
@@ -423,4 +586,6 @@ class ProductsService:
             variants = await self._get_variants(pid)
             images = await self._get_images(pid)
             products.append(self._row_to_read(row, variants, images))
-        return products
+
+        from app.core.pagination import paginate
+        return paginate(products, total, page, limit, format_param)

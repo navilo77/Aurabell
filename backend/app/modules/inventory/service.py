@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import User
 from app.core.exceptions import AuthError
 from app.modules.inventory.schema import (
     InventoryAdjustmentCreate,
@@ -105,11 +106,24 @@ class InventoryService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
+    def _check_platform_admin(self, user: User) -> None:
+        """Verify user has platform admin access (super_admin or owner)."""
+        if "super_admin" not in user.roles and "owner" not in user.roles:
+            raise AuthError(
+                message="Platform admin access required for inventory operations",
+                code="PERMISSION_DENIED",
+                status_code=403,
+            )
+
     # ------------------------------------------------------------------
     # Stock Balances
     # ------------------------------------------------------------------
-    async def get_balance(self, warehouse_id: str, variant_id: str) -> InventoryBalanceRead:
-        """Return current stock balance for a variant in a warehouse."""
+    async def get_balance(self, warehouse_id: str, variant_id: str, user: User) -> InventoryBalanceRead:
+        """Return current stock balance for a variant in a warehouse.
+
+        Platform admin access required (central warehouse).
+        """
+        self._check_platform_admin(user)
         result = await self.db.execute(
             text(
                 "SELECT id, warehouse_id, variant_id, quantity_on_hand, "
@@ -136,12 +150,17 @@ class InventoryService:
         variant_id: str,
         data: InventoryAdjustmentCreate,
         created_by: str | None = None,
+        user: User | None = None,
     ) -> InventoryBalanceRead:
         """Adjust stock quantity (inbound positive, outbound negative).
 
         Atomically updates quantity_on_hand and inserts a stock_movements ledger row.
         Enforces quantity_on_hand >= 0 and quantity_reserved <= quantity_on_hand.
+
+        Platform admin access required (central warehouse).
         """
+        if user is not None:
+            self._check_platform_admin(user)
         # Lock the balance row for concurrency safety
         existing = await self.db.execute(
             text(
@@ -222,7 +241,29 @@ class InventoryService:
 
         await self.db.commit()
 
-        return await self.get_balance(warehouse_id, variant_id)
+        return await self._get_balance_internal(warehouse_id, variant_id)
+
+    async def _get_balance_internal(self, warehouse_id: str, variant_id: str) -> InventoryBalanceRead:
+        """Internal version without auth check for internal callers."""
+        result = await self.db.execute(
+            text(
+                "SELECT id, warehouse_id, variant_id, quantity_on_hand, "
+                "quantity_reserved, updated_at FROM inventory_balances "
+                "WHERE warehouse_id = :warehouse_id AND variant_id = :variant_id"
+            ),
+            {"warehouse_id": warehouse_id, "variant_id": variant_id},
+        )
+        row = result.mappings().one_or_none()
+        if row is None:
+            return InventoryBalanceRead(
+                id="",
+                warehouse_id=warehouse_id,
+                variant_id=variant_id,
+                quantity_on_hand=0,
+                quantity_reserved=0,
+                updated_at=None,
+            )
+        return _row_to_balance_read(row)
 
     # ------------------------------------------------------------------
     # Reservations
@@ -231,12 +272,17 @@ class InventoryService:
         self,
         data: InventoryReservationCreate,
         created_by: str | None = None,
+        user: User | None = None,
     ) -> InventoryReservationRead:
         """Create a stock reservation with TTL.
 
         Locks the inventory_balance row with SELECT FOR UPDATE to prevent
         concurrent overselling.
+
+        Platform admin access required (central warehouse).
         """
+        if user is not None:
+            self._check_platform_admin(user)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
 
         # Lock balance row
@@ -314,8 +360,13 @@ class InventoryService:
         await self.db.commit()
         return _row_to_reservation_read(res_row)
 
-    async def get_reservation(self, reservation_id: str) -> InventoryReservationRead:
-        """Fetch a reservation by ID."""
+    async def get_reservation(self, reservation_id: str, user: User | None = None) -> InventoryReservationRead:
+        """Fetch a reservation by ID.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         result = await self.db.execute(
             text(
                 "SELECT id, variant_id, warehouse_id, order_id, quantity, status, "
@@ -335,8 +386,14 @@ class InventoryService:
         variant_id: str | None = None,
         status: str | None = None,
         limit: int = 100,
+        user: User | None = None,
     ) -> list[InventoryReservationRead]:
-        """List reservations with optional filters."""
+        """List reservations with optional filters.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         conditions = []
         params: dict[str, object] = {"limit": limit}
         if warehouse_id:
@@ -363,9 +420,15 @@ class InventoryService:
         self,
         reservation_id: str,
         created_by: str | None = None,
+        user: User | None = None,
     ) -> InventoryReservationRead:
-        """Mark a reservation as consumed (stock deducted from on-hand)."""
-        res = await self.get_reservation(reservation_id)
+        """Mark a reservation as consumed (stock deducted from on-hand).
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
+        res = await self.get_reservation(reservation_id, user)
         if res.status != "active":
             raise InventoryError(
                 f"Cannot consume reservation in status '{res.status}'",
@@ -419,15 +482,21 @@ class InventoryService:
             },
         )
         await self.db.commit()
-        return await self.get_reservation(reservation_id)
+        return await self.get_reservation(reservation_id, user)
 
     async def release_reservation(
         self,
         reservation_id: str,
         created_by: str | None = None,
+        user: User | None = None,
     ) -> InventoryReservationRead:
-        """Release an active reservation back to available stock."""
-        res = await self.get_reservation(reservation_id)
+        """Release an active reservation back to available stock.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
+        res = await self.get_reservation(reservation_id, user)
         if res.status != "active":
             raise InventoryError(
                 f"Cannot release reservation in status '{res.status}'",
@@ -468,14 +537,18 @@ class InventoryService:
             },
         )
         await self.db.commit()
-        return await self.get_reservation(reservation_id)
+        return await self.get_reservation(reservation_id, user)
 
-    async def cleanup_expired_reservations(self) -> int:
+    async def cleanup_expired_reservations(self, user: User | None = None) -> int:
         """Expire active reservations past their TTL and release reserved stock.
 
         Returns the number of reservations expired.
         Called by the background worker every 1 minute.
+
+        Platform admin access required (central warehouse).
         """
+        if user is not None:
+            self._check_platform_admin(user)
         now = datetime.now(timezone.utc)
         expired = await self.db.execute(
             text(
@@ -533,8 +606,14 @@ class InventoryService:
         warehouse_id: str | None = None,
         variant_id: str | None = None,
         limit: int = 100,
+        user: User | None = None,
     ) -> list[InventoryStockMovementRead]:
-        """List stock movement ledger entries."""
+        """List stock movement ledger entries.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         conditions = []
         params: dict[str, object] = {"limit": limit}
         if warehouse_id:
@@ -558,8 +637,13 @@ class InventoryService:
     # ------------------------------------------------------------------
     # Product Batches
     # ------------------------------------------------------------------
-    async def create_batch(self, data: ProductBatchCreate) -> ProductBatchRead:
-        """Create a product batch (skincare expiry tracking)."""
+    async def create_batch(self, data: ProductBatchCreate, user: User | None = None) -> ProductBatchRead:
+        """Create a product batch (skincare expiry tracking).
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         mfd = date.fromisoformat(data.manufacture_date) if data.manufacture_date else None
         exp = date.fromisoformat(data.expiry_date)
         result = await self.db.execute(
@@ -582,7 +666,13 @@ class InventoryService:
         await self.db.commit()
         return _row_to_batch_read(row)
 
-    async def get_batch(self, batch_id: str) -> ProductBatchRead:
+    async def get_batch(self, batch_id: str, user: User | None = None) -> ProductBatchRead:
+        """Fetch a batch by ID.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         result = await self.db.execute(
             text(
                 "SELECT id, variant_id, batch_number, manufacture_date, expiry_date, "
@@ -599,7 +689,14 @@ class InventoryService:
         self,
         variant_id: str | None = None,
         limit: int = 100,
+        user: User | None = None,
     ) -> list[ProductBatchRead]:
+        """List batches with optional filters.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         conditions = []
         params: dict[str, object] = {"limit": limit}
         if variant_id:
@@ -620,10 +717,17 @@ class InventoryService:
         self,
         batch_id: str,
         data: ProductBatchUpdate,
+        user: User | None = None,
     ) -> ProductBatchRead:
+        """Update a product batch.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         changes = data.model_dump(exclude_unset=True)
         if not changes:
-            return await self.get_batch(batch_id)
+            return await self.get_batch(batch_id, user)
         for key in ("manufacture_date", "expiry_date"):
             if changes.get(key):
                 changes[key] = date.fromisoformat(changes[key])
@@ -645,7 +749,13 @@ class InventoryService:
     # ------------------------------------------------------------------
     # Product Serials
     # ------------------------------------------------------------------
-    async def create_serial(self, data: ProductSerialCreate) -> ProductSerialRead:
+    async def create_serial(self, data: ProductSerialCreate, user: User | None = None) -> ProductSerialRead:
+        """Create a product serial number.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         result = await self.db.execute(
             text(
                 "INSERT INTO product_serials "
@@ -663,7 +773,13 @@ class InventoryService:
         await self.db.commit()
         return _row_to_serial_read(row)
 
-    async def get_serial(self, serial_id: str) -> ProductSerialRead:
+    async def get_serial(self, serial_id: str, user: User | None = None) -> ProductSerialRead:
+        """Fetch a serial by ID.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         result = await self.db.execute(
             text(
                 "SELECT id, variant_id, serial_number, status, created_at "
@@ -681,7 +797,14 @@ class InventoryService:
         variant_id: str | None = None,
         status: str | None = None,
         limit: int = 100,
+        user: User | None = None,
     ) -> list[ProductSerialRead]:
+        """List serials with optional filters.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         conditions = []
         params: dict[str, object] = {"limit": limit}
         if variant_id:
@@ -704,10 +827,17 @@ class InventoryService:
         self,
         serial_id: str,
         data: ProductSerialUpdate,
+        user: User | None = None,
     ) -> ProductSerialRead:
+        """Update a product serial.
+
+        Platform admin access required (central warehouse).
+        """
+        if user is not None:
+            self._check_platform_admin(user)
         changes = data.model_dump(exclude_unset=True)
         if not changes:
-            return await self.get_serial(serial_id)
+            return await self.get_serial(serial_id, user)
         set_clause = ", ".join(f"{key} = :{key}" for key in changes)
         result = await self.db.execute(
             text(

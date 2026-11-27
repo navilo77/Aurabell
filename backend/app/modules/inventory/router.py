@@ -50,7 +50,7 @@ async def get_balance(
     warehouse_id: str = Path(..., description="Warehouse UUID"),
     variant_id: str = Path(..., description="Product variant UUID"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("store_manager", "inventory_manager", "super_admin")),
+    user=Depends(require_role("store_manager", "inventory_manager", "super_admin")),
 ):
     """Get current stock balance for a variant in a warehouse."""
     try:
@@ -114,7 +114,7 @@ async def list_reservations(
     status: str | None = Query(None, description="Filter by status"),
     limit: int = Query(100, ge=1, le=500, description="Max results"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
 ):
     """List inventory reservations with optional filters."""
     return await service.list_reservations(warehouse_id, variant_id, status, limit)
@@ -128,7 +128,7 @@ async def list_reservations(
 async def get_reservation(
     reservation_id: str = Path(..., description="Reservation UUID"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
 ):
     """Get a reservation by ID."""
     try:
@@ -187,7 +187,7 @@ async def list_movements(
     variant_id: str | None = Query(None, description="Filter by variant UUID"),
     limit: int = Query(100, ge=1, le=500, description="Max results"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
 ):
     """List stock movement ledger entries (read-only, immutable)."""
     return await service.list_movements(warehouse_id, variant_id, limit)
@@ -204,7 +204,7 @@ async def list_movements(
 async def create_batch(
     data: ProductBatchCreate,
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "super_admin")),
 ):
     """Create a product batch (skincare expiry tracking)."""
     try:
@@ -222,7 +222,7 @@ async def list_batches(
     variant_id: str | None = Query(None, description="Filter by variant UUID"),
     limit: int = Query(100, ge=1, le=500, description="Max results"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
 ):
     """List product batches."""
     return await service.list_batches(variant_id, limit)
@@ -236,7 +236,7 @@ async def list_batches(
 async def get_batch(
     batch_id: str = Path(..., description="Batch UUID"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
 ):
     """Get a product batch by ID."""
     try:
@@ -254,7 +254,7 @@ async def update_batch(
     data: ProductBatchUpdate,
     batch_id: str = Path(..., description="Batch UUID"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "super_admin")),
 ):
     """Update a product batch."""
     try:
@@ -274,7 +274,7 @@ async def update_batch(
 async def create_serial(
     data: ProductSerialCreate,
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "super_admin")),
 ):
     """Create a product serial (IMEI/serial number tracking)."""
     try:
@@ -293,7 +293,7 @@ async def list_serials(
     status: str | None = Query(None, description="Filter by status"),
     limit: int = Query(100, ge=1, le=500, description="Max results"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
 ):
     """List product serials."""
     return await service.list_serials(variant_id, status, limit)
@@ -307,7 +307,7 @@ async def list_serials(
 async def get_serial(
     serial_id: str = Path(..., description="Serial UUID"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "store_manager", "super_admin")),
 ):
     """Get a product serial by ID."""
     try:
@@ -325,7 +325,7 @@ async def update_serial(
     data: ProductSerialUpdate,
     serial_id: str = Path(..., description="Serial UUID"),
     service: InventoryService = Depends(get_inventory_service),
-    _user=Depends(require_role("inventory_manager", "super_admin")),
+    user=Depends(require_role("inventory_manager", "super_admin")),
 ):
     """Update a product serial (status change)."""
     try:

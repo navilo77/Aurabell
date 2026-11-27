@@ -16,6 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import AuthError
+from app.core.redis_otp import CODOTPStore, get_cod_otp_store
 from app.modules.cart.service import CartService
 from app.modules.inventory.service import InventoryService, InventoryReservationCreate
 from app.modules.orders.schema import (
@@ -36,11 +37,17 @@ class OrdersError(AuthError):
 class OrdersService:
     """Order placement, split-order transaction, and COD verification."""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, otp_store: CODOTPStore | None = None) -> None:
         self.db = db
         self.cart_service = CartService(db)
         self.inventory = InventoryService(db)
         self.pricing = PricingService(db)
+        self._otp_store = otp_store
+
+    async def _get_otp_store(self) -> CODOTPStore:
+        if self._otp_store is not None:
+            return self._otp_store
+        return await get_cod_otp_store()
 
     # ------------------------------------------------------------------
     # Helper: Generate unique order numbers
@@ -60,60 +67,6 @@ class OrdersService:
     def _generate_otp(self) -> str:
         """Generate 4-digit numeric OTP."""
         return "".join(random.choices(string.digits, k=4))
-
-    # ------------------------------------------------------------------
-    # Delivery fee calculation (DEC-OWN-003)
-    # ------------------------------------------------------------------
-
-    def _calculate_delivery_fee(self, district: str | None) -> Decimal:
-        """Calculate flat delivery fee per DEC-OWN-003.
-
-        Dhaka Metro (ঢাকা): 70 BDT
-        Outside Dhaka: 120 BDT
-        """
-        if not district:
-            return Decimal("120.00")
-        if district.lower() in ["dhaka", "ঢাকা"]:
-            return Decimal("70.00")
-        return Decimal("120.00")
-
-    # ------------------------------------------------------------------
-    # COD OTP storage (in-memory for dev; should use Redis in production)
-    # ------------------------------------------------------------------
-
-    _cod_otp_store: dict[str, dict] = {}
-
-    def _store_cod_otp(self, order_id: str, otp: str) -> None:
-        """Store OTP with expiry and attempt tracking."""
-        self._cod_otp_store[order_id] = {
-            "otp": otp,
-            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=5),
-            "attempts": 0,
-        }
-
-    def _verify_cod_otp(self, order_id: str, otp_code: str) -> tuple[bool, str]:
-        """Verify COD OTP. Returns (success, message)."""
-        if order_id not in self._cod_otp_store:
-            return False, "OTP not found or expired"
-
-        otp_data = self._cod_otp_store[order_id]
-
-        if datetime.now(timezone.utc) > otp_data["expires_at"]:
-            del self._cod_otp_store[order_id]
-            return False, "OTP has expired"
-
-        if otp_data["attempts"] >= 3:
-            del self._cod_otp_store[order_id]
-            return False, "Maximum OTP attempts exceeded"
-
-        otp_data["attempts"] += 1
-
-        if otp_data["otp"] != otp_code:
-            return False, f"Invalid OTP. {3 - otp_data['attempts']} attempts remaining"
-
-        # Success - remove OTP
-        del self._cod_otp_store[order_id]
-        return True, "OTP verified successfully"
 
     # ------------------------------------------------------------------
     # Order access control (IDOR prevention)
@@ -196,6 +149,70 @@ class OrdersService:
         7. Status history
         8. Mark cart as converted
         """
+        # ─── Address Resolution (BE-03) ─────────────────────────────────────
+        # Case C: both supplied → reject as ambiguous
+        if order_data.delivery_address_id and order_data.address:
+            raise OrdersError(
+                message="Provide either delivery_address_id or address, not both",
+                code="AMBIGUOUS_ADDRESS",
+                status_code=400,
+            )
+
+        # Case D: neither supplied → reject
+        if not order_data.delivery_address_id and not order_data.address:
+            raise OrdersError(
+                message="Delivery address is required (delivery_address_id or address)",
+                code="ADDRESS_REQUIRED",
+                status_code=400,
+            )
+
+        # Resolve delivery address into snapshot fields
+        resolved: dict = {}
+        if order_data.delivery_address_id:
+            # Case A: saved address — verify ownership
+            addr_result = await self.db.execute(
+                text(
+                    "SELECT recipient_name, phone, division, district, upazila, "
+                    "area, address_line, postal_code FROM addresses "
+                    "WHERE id = :addr_id AND user_id = :user_id"
+                ),
+                {"addr_id": order_data.delivery_address_id, "user_id": user_id},
+            )
+            addr_row = addr_result.mappings().first()
+            if not addr_row:
+                raise OrdersError(
+                    message="Address not found or does not belong to user",
+                    code="ADDRESS_NOT_FOUND",
+                    status_code=404,
+                )
+            resolved = {
+                "recipient_name": addr_row["recipient_name"],
+                "phone": addr_row["phone"],
+                "division": addr_row["division"],
+                "district": addr_row["district"],
+                "upazila": addr_row["upazila"],
+                "area": addr_row["area"],
+                "address_line": addr_row["address_line"],
+                "postal_code": addr_row["postal_code"],
+            }
+        else:
+            # Case B: inline address — validate via Pydantic (already validated by schema)
+            addr = order_data.address
+            resolved = {
+                "recipient_name": addr.recipient_name,
+                "phone": addr.phone,
+                "division": addr.division,
+                "district": addr.district,
+                "upazila": addr.upazila,
+                "area": addr.area,
+                "address_line": addr.address_line,
+                "postal_code": addr.postal_code,
+            }
+
+        # Derive district for delivery fee if not provided
+        if not order_data.district:
+            order_data.district = resolved["district"]
+
         # Validate cart exists and belongs to user
         cart = await self.cart_service.get_or_create_cart(user_id=user_id)
         if cart.id != order_data.cart_id:
@@ -268,8 +285,7 @@ class OrdersService:
             )
             order_id = str(order_result.scalar_one())
 
-            # 4. Create delivery address snapshot (from user's default address or cart)
-            # For now, we'll use a placeholder - in real impl, fetch from user addresses
+            # 4. Create delivery address snapshot (immutable order-level copy)
             await self.db.execute(
                 text(
                     """
@@ -277,11 +293,21 @@ class OrdersService:
                     (order_id, recipient_name, phone, division, district, upazila,
                      area, address_line, postal_code, address_type, created_at)
                     VALUES
-                    (:order_id, 'Customer', '01XXXXXXXXX', 'Dhaka', :district, NULL,
-                     NULL, 'Address line', '1000', 'delivery', NOW())
+                    (:order_id, :recipient_name, :phone, :division, :district, :upazila,
+                     :area, :address_line, :postal_code, 'delivery', NOW())
                     """
                 ),
-                {"order_id": order_id, "district": order_data.district or "Dhaka"},
+                {
+                    "order_id": order_id,
+                    "recipient_name": resolved["recipient_name"],
+                    "phone": resolved["phone"],
+                    "division": resolved["division"],
+                    "district": resolved["district"],
+                    "upazila": resolved["upazila"],
+                    "area": resolved["area"],
+                    "address_line": resolved["address_line"],
+                    "postal_code": resolved["postal_code"],
+                },
             )
 
             # 5. Group items by store and create store orders
@@ -442,7 +468,8 @@ class OrdersService:
             # Handle COD OTP generation
             if order_data.payment_method == "cod":
                 otp = self._generate_otp()
-                self._store_cod_otp(order_id, otp)
+                otp_store = await self._get_otp_store()
+                await otp_store.store_otp(order_id, otp)
                 # In production, send via SMS gateway
                 # For dev, print to console
                 print(f"[COD OTP] Order {order_number}: {otp}")
@@ -494,6 +521,36 @@ class OrdersService:
         )
         store_orders = store_orders_result.mappings().all()
 
+        # Get delivery address snapshot
+        addr_result = await self.db.execute(
+            text(
+                """
+                SELECT recipient_name, phone, division, district, upazila,
+                       area, address_line, postal_code, address_type
+                FROM order_addresses
+                WHERE order_id = :order_id AND address_type = 'delivery'
+                LIMIT 1
+                """
+            ),
+            {"order_id": order_id},
+        )
+        addr_row = addr_result.mappings().first()
+
+        delivery_address = None
+        if addr_row:
+            from app.modules.orders.schema import OrderAddressRead
+            delivery_address = OrderAddressRead(
+                recipient_name=addr_row["recipient_name"],
+                phone=addr_row["phone"],
+                division=addr_row["division"],
+                district=addr_row["district"],
+                upazila=addr_row["upazila"],
+                area=addr_row["area"],
+                address_line=addr_row["address_line"],
+                postal_code=addr_row["postal_code"],
+                address_type=addr_row["address_type"],
+            )
+
         # Get order items
         items_result = await self.db.execute(
             text(
@@ -521,6 +578,7 @@ class OrdersService:
             currency_code=order_row["currency_code"],
             order_status=order_row["order_status"],
             created_at=str(order_row["created_at"]),
+            delivery_address=delivery_address,
             store_orders=[
                 OrderRead(
                     id=str(so["id"]),
@@ -548,6 +606,164 @@ class OrdersService:
             ],
         )
 
+    async def get_order_timeline(
+        self,
+        order_id: str,
+        user_id: str | None = None,
+        store_ids: list[str] | None = None,
+    ) -> list:
+        await self._assert_order_access(order_id, user_id=user_id, store_ids=store_ids)
+
+        result = await self.db.execute(
+            text(
+                "SELECT old_status, new_status, changed_by, note, created_at "
+                "FROM order_status_history WHERE order_id = :order_id "
+                "ORDER BY created_at ASC"
+            ),
+            {"order_id": order_id},
+        )
+        rows = result.mappings().all()
+        from app.modules.orders.schema import OrderTimelineEntry
+        return [
+            OrderTimelineEntry(
+                old_status=row["old_status"],
+                new_status=row["new_status"],
+                changed_by=str(row["changed_by"]) if row["changed_by"] else None,
+                note=row["note"],
+                created_at=str(row["created_at"]),
+            )
+            for row in rows
+        ]
+
+    _CUSTOMER_CANCELLABLE = {"pending", "confirmed"}
+
+    async def cancel_order(
+        self,
+        order_id: str,
+        user_id: str | None = None,
+        store_ids: list[str] | None = None,
+    ):
+        await self._assert_order_access(order_id, user_id=user_id, store_ids=store_ids)
+
+        result = await self.db.execute(
+            text("SELECT order_status FROM orders WHERE id = :order_id"),
+            {"order_id": order_id},
+        )
+        row = result.mappings().first()
+        if not row:
+            raise OrdersError(message="Order not found", code="ORDER_NOT_FOUND", status_code=404)
+
+        current_status = row["order_status"]
+        if current_status not in self._CUSTOMER_CANCELLABLE:
+            raise OrdersError(
+                message="Cannot cancel order in '%s' status" % current_status,
+                code="CANCELLATION_NOT_ALLOWED",
+                status_code=400,
+            )
+
+        async with self.db.begin():
+            update_result = await self.db.execute(
+                text(
+                    "UPDATE orders SET order_status = 'cancelled', updated_at = NOW() "
+                    "WHERE id = :order_id AND order_status = :current_status RETURNING id"
+                ),
+                {"order_id": order_id, "current_status": current_status},
+            )
+            if not update_result.scalar_one_or_none():
+                raise OrdersError(
+                    message="Order status changed concurrently, cancellation aborted",
+                    code="CONCURRENT_MODIFICATION",
+                    status_code=409,
+                )
+
+            await self.db.execute(
+                text(
+                    "UPDATE store_orders SET status = 'cancelled' "
+                    "WHERE order_id = :order_id AND status IN ('pending', 'confirmed')"
+                ),
+                {"order_id": order_id},
+            )
+
+            await self.db.execute(
+                text(
+                    "INSERT INTO order_status_history "
+                    "(order_id, old_status, new_status, changed_by, note, created_at) "
+                    "VALUES (:order_id, :old_status, 'cancelled', :user_id, 'Cancelled by customer', NOW())"
+                ),
+                {"order_id": order_id, "old_status": current_status, "user_id": user_id},
+            )
+
+        return await self.get_order(order_id, user_id=user_id, store_ids=store_ids)
+
+    _VALID_TRANSITIONS = {
+        "pending": {"confirmed", "cancelled"},
+        "confirmed": {"processing", "cancelled"},
+        "processing": {"shipped"},
+        "shipped": {"delivered"},
+        "delivered": set(),
+        "cancelled": set(),
+    }
+
+    def _is_valid_transition(self, old_status: str, new_status: str) -> bool:
+        return new_status in self._VALID_TRANSITIONS.get(old_status, set())
+
+    async def update_order_status(
+        self,
+        order_id: str,
+        new_status: str,
+        note: str | None = None,
+        user_id: str | None = None,
+        store_ids: list[str] | None = None,
+    ):
+        await self._assert_order_access(order_id, user_id=user_id, store_ids=store_ids)
+
+        result = await self.db.execute(
+            text("SELECT order_status FROM orders WHERE id = :order_id"),
+            {"order_id": order_id},
+        )
+        row = result.mappings().first()
+        if not row:
+            raise OrdersError(message="Order not found", code="ORDER_NOT_FOUND", status_code=404)
+
+        current_status = row["order_status"]
+        if not self._is_valid_transition(current_status, new_status):
+            raise OrdersError(
+                message="Invalid status transition from '%s' to '%s'" % (current_status, new_status),
+                code="INVALID_TRANSITION",
+                status_code=400,
+            )
+
+        async with self.db.begin():
+            await self.db.execute(
+                text("UPDATE orders SET order_status = :new_status, updated_at = NOW() WHERE id = :order_id"),
+                {"order_id": order_id, "new_status": new_status},
+            )
+
+            if store_ids:
+                await self.db.execute(
+                    text(
+                        "UPDATE store_orders SET status = :new_status "
+                        "WHERE order_id = :order_id AND store_id = ANY(:store_ids)"
+                    ),
+                    {"order_id": order_id, "new_status": new_status, "store_ids": store_ids},
+                )
+            else:
+                await self.db.execute(
+                    text("UPDATE store_orders SET status = :new_status WHERE order_id = :order_id"),
+                    {"order_id": order_id, "new_status": new_status},
+                )
+
+            await self.db.execute(
+                text(
+                    "INSERT INTO order_status_history "
+                    "(order_id, old_status, new_status, changed_by, note, created_at) "
+                    "VALUES (:order_id, :old_status, :new_status, :user_id, :note, NOW())"
+                ),
+                {"order_id": order_id, "old_status": current_status, "new_status": new_status, "user_id": user_id, "note": note},
+            )
+
+        return await self.get_order(order_id, user_id=user_id, store_ids=store_ids)
+
     # ------------------------------------------------------------------
     # COD Verification (M4.4)
     # ------------------------------------------------------------------
@@ -563,7 +779,8 @@ class OrdersService:
         Only the customer who placed the order may verify the OTP.
         """
         await self._assert_order_access(request.order_id, user_id=user_id, store_ids=store_ids)
-        success, message = self._verify_cod_otp(request.order_id, request.otp_code)
+        otp_store = await self._get_otp_store()
+        success, message = await otp_store.verify_otp(request.order_id, request.otp_code)
 
         if not success:
             raise OrdersError(message=message, code="OTP_VERIFICATION_FAILED", status_code=400)
