@@ -136,27 +136,44 @@ async def get_current_user(
 # ─── require_role Factory ───────────────────────────────────────────────────
 
 
-def require_role(*required_roles: str) -> Callable[[], Awaitable[User]]:
-    """Create a FastAPI dependency that requires specific role(s).
+def require_role(
+    *required_roles: str,
+    store_id: str | Callable[[Request], str | None] | None = None,
+) -> Callable[[], Awaitable[User]]:
+    """Create a FastAPI dependency that requires specific role(s) and optional store access.
 
     Usage:
         @router.get("/admin-only")
         async def admin_endpoint(user: User = Depends(require_role("admin", "owner"))):
             ...
 
+        @router.post("/products")
+        async def create_product(
+            data: ProductCreate,
+            user: User = Depends(require_role("store_manager", "super_admin", store_id=lambda r: r.state.get("store_id"))):
+            ...
+
     Args:
         *required_roles: One or more role names. User must have AT LEAST ONE.
+        store_id: Optional store UUID or callable that extracts store_id from Request.
+            If callable, it receives the Request and returns store_id string or None.
+            If string, used directly. If None, no store check performed.
+            User must have this store_id in their store_ids (for store_manager role).
+            super_admin bypasses store check.
 
     Returns:
         Dependency callable that returns User if authorized, raises 403 otherwise.
 
     Raises:
-        HTTPException 403: User lacks all required roles
+        HTTPException 403: User lacks required roles or store access
     """
     if not required_roles:
         raise ValueError("require_role requires at least one role")
 
-    async def role_checker(user: User = Depends(get_current_user)) -> User:
+    async def role_checker(
+        request: Request | None = Depends(lambda: None),  # FastAPI will inject Request if available
+        user: User = Depends(get_current_user),
+    ) -> User:
         user_roles = set(user.roles)
         required = set(required_roles)
 
@@ -168,6 +185,67 @@ def require_role(*required_roles: str) -> Callable[[], Awaitable[User]]:
                     user_roles=user.roles,
                 ).message,
             )
+
+        # Store scoping: if store_id provided, verify user has access
+        if store_id is not None:
+            # Resolve store_id from callable or use directly
+            if callable(store_id):
+                if request is None:
+                    # If no request available, we can't resolve callable store_id
+                    # This should not happen in normal FastAPI usage
+                    pass
+                else:
+                    resolved_store_id = store_id(request)
+                    if resolved_store_id is not None:
+                        # super_admin bypasses store check
+                        if "super_admin" not in user.roles:
+                            # store_manager must have the store in their store_ids
+                            if "store_manager" in user_roles:
+                                if resolved_store_id not in (user.store_ids or []):
+                                    raise HTTPException(
+                                        status_code=status.HTTP_403_FORBIDDEN,
+                                        detail=PermissionDenied(
+                                            required_roles=list(required_roles),
+                                            user_roles=user.roles,
+                                        ).message,
+                                    )
+                            else:
+                                # Other roles (e.g., inventory_manager) also need store access
+                                if resolved_store_id not in (user.store_ids or []):
+                                    raise HTTPException(
+                                        status_code=status.HTTP_403_FORBIDDEN,
+                                        detail=PermissionDenied(
+                                            required_roles=list(required_roles),
+                                            user_roles=user.roles,
+                                        ).message,
+                                    )
+            else:
+                # Direct store_id string
+                resolved_store_id = store_id
+                if resolved_store_id is not None:
+                    # super_admin bypasses store check
+                    if "super_admin" not in user.roles:
+                        # store_manager must have the store in their store_ids
+                        if "store_manager" in user_roles:
+                            if resolved_store_id not in (user.store_ids or []):
+                                raise HTTPException(
+                                    status_code=status.HTTP_403_FORBIDDEN,
+                                    detail=PermissionDenied(
+                                        required_roles=list(required_roles),
+                                        user_roles=user.roles,
+                                    ).message,
+                                )
+                        else:
+                            # Other roles (e.g., inventory_manager) also need store access
+                            if resolved_store_id not in (user.store_ids or []):
+                                raise HTTPException(
+                                    status_code=status.HTTP_403_FORBIDDEN,
+                                    detail=PermissionDenied(
+                                        required_roles=list(required_roles),
+                                        user_roles=user.roles,
+                                    ).message,
+                                )
+
         return user
 
     return role_checker

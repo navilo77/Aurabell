@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from app.core.database import get_db
 from app.core.exceptions import AuthError
 from app.modules.auth.schema import (
     AuthErrorResponse,
@@ -14,6 +15,7 @@ from app.modules.auth.schema import (
     UserRegister,
 )
 from app.modules.auth.service import get_auth_service
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -48,10 +50,14 @@ async def login(credentials: UserLogin, response: Response) -> Token:
     },
     summary="Register new user",
 )
-async def register(data: UserRegister, response: Response) -> Token:
+async def register(
+    data: UserRegister,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> Token:
     """Register a new user account. May require email confirmation."""
     try:
-        token = await get_auth_service().register(data)
+        token = await get_auth_service().register(data, db)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
     if token.access_token:
@@ -159,4 +165,5 @@ async def logout(
             pass
     response.delete_cookie("aura_access_token", path="/")
     response.delete_cookie("aura_refresh_token", path="/")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response

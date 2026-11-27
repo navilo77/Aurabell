@@ -87,7 +87,7 @@ async def verify_token(token: str) -> dict[str, Any]:
     """Verify JWT token from Supabase GoTrue.
 
     Validates:
-    - Signature using JWKS (RS256)
+    - Signature using JWKS (ES256)
     - `iss` claim matches Supabase project issuer
     - `aud` claim equals "authenticated"
     - `exp` claim not in the past
@@ -117,7 +117,7 @@ async def verify_token(token: str) -> dict[str, Any]:
         payload = jwt.decode(
             token,
             jwks,
-            algorithms=["RS256"],
+            algorithms=["ES256"],
             audience="authenticated",
             issuer=expected_issuer,
             options={
@@ -158,7 +158,7 @@ def verify_token_sync(token: str, jwks: dict[str, Any]) -> dict[str, Any]:
         payload = jwt.decode(
             token,
             jwks,
-            algorithms=["RS256"],
+            algorithms=["ES256"],
             audience="authenticated",
             issuer=expected_issuer,
             options={
