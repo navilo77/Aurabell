@@ -100,3 +100,4 @@ kilo.jsonc
 
 frontend/public/images/*-test.*
 frontend/public/images/*-clean.*
+.kilo/
