@@ -18,6 +18,28 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   return parseResponse(res);
 }
 
+export async function apiFetchOptional<T>(path: string, options: RequestInit = {}): Promise<T | null> {
+  const isRefreshEndpoint = path === "/auth/refresh";
+
+  const res = await fetchRaw(path, options);
+
+  if (res.status === 401 && !isRefreshEndpoint) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      const retried = await fetchRaw(path, options);
+      return parseResponse(retried);
+    }
+    // Return null instead of triggering auth failure redirect
+    return null;
+  }
+
+  if (!res.ok) {
+    return null;
+  }
+
+  return parseResponse(res);
+}
+
 async function fetchRaw(path: string, options: RequestInit = {}): Promise<Response> {
   return fetch(`/api/v1${path}`, {
     ...options,

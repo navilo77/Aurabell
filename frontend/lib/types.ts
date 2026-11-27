@@ -18,6 +18,16 @@ export interface AuthUser {
   roles: UserRole[];
 }
 
+export interface UserProfileRead {
+  id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  status: string;
+  roles: UserRole[];
+  store_ids: string[];
+}
+
 export interface DecodedToken {
   sub?: string;
   email?: string;
@@ -69,6 +79,8 @@ export interface ProductRead {
   updated_at: string | null;
   variants: VariantRead[];
   images: ImageRead[];
+  price?: number;
+  compareAtPrice?: number;
 }
 
 export interface StoreRead {
@@ -82,4 +94,151 @@ export interface StoreRead {
   created_at: string | null;
   updated_at: string | null;
   policies: unknown[];
+}
+
+export interface OrderItemRead {
+  id: string;
+  product_name_snapshot: string;
+  sku_snapshot: string;
+  variant_snapshot: Record<string, unknown> | null;
+  unit_price: number;
+  quantity: number;
+  discount_amount: number;
+  line_total: number;
+}
+
+export interface OrderRead {
+  id: string;
+  order_number: string;
+  user_id: string | null;
+  subtotal: number;
+  discount_total: number;
+  delivery_total: number;
+  grand_total: number;
+  currency_code: string;
+  order_status: string;
+  created_at: string;
+  delivery_address: {
+    recipient_name: string;
+    phone: string;
+    address_line: string;
+    area?: string | null;
+    upazila?: string | null;
+    district?: string | null;
+    division?: string | null;
+    postal_code?: string | null;
+  } | null;
+  store_orders: OrderRead[];
+  order_items: OrderItemRead[];
+}
+
+export interface OrderTimelineEntry {
+  old_status: string | null;
+  new_status: string;
+  changed_by: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    per_page: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}
+
+// ─── Community / Chat (BE-06) ───────────────────────────────────────────────
+
+export interface CommunityProfileRead {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  member_since: string | null;
+}
+
+export interface CommunityProfileUpdate {
+  display_name?: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+}
+
+export interface ConversationRead {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  other_user: CommunityProfileRead | null;
+  last_message: string | null;
+  unread_count: number;
+}
+
+export interface ConversationCreate {
+  recipient_id: string;
+}
+
+export interface MessageRead {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+export interface MessageCreate {
+  content: string;
+}
+
+export interface ConversationMemberRead {
+  user_id: string;
+  last_read_at: string | null;
+  joined_at: string;
+}
+
+// ─── Payments (BE-07) ────────────────────────────────────────────────────────
+
+export interface PaymentInitiateRequest {
+  order_id: string;
+}
+
+export interface PaymentInitiateResponse {
+  payment_id: string;
+  payment_url: string;
+  transaction_id: string | null;
+}
+
+export interface PaymentRead {
+  id: string;
+  order_id: string;
+  provider: string;
+  provider_reference: string | null;
+  payment_method: string;
+  amount: number;
+  currency_code: string;
+  status: string;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export type PaymentStatus =
+  | "pending"
+  | "authorized"
+  | "paid"
+  | "failed"
+  | "partially_refunded"
+  | "refunded";
+
+export interface PaymentVerifyResponse {
+  payment_id: string;
+  order_id: string;
+  status: string;
+  gateway_status: string;
+  amount: string;
 }

@@ -30,17 +30,22 @@ interface Props {
 export function CartSummary({ preview, onProceed }: Props) {
   if (!preview) return null;
 
-  const { subtotal, discount, delivery_fee, grand_total, items } = preview;
+  const toNum = (v: unknown): number => (typeof v === "number" ? v : Number(v)) || 0;
+  const subtotal = toNum(preview.subtotal);
+  const discount = toNum(preview.discount);
+  const delivery_fee = toNum(preview.delivery_fee);
+  const grand_total = toNum(preview.grand_total);
 
   // প্রতি স্টোরের সাব‑টোটাল হিসাব
   const storeMap: Record<string, number> = {};
-  items.forEach((it) => {
+  preview.items.forEach((it) => {
     const storeName = it.store_name ?? it.store_id;
-    storeMap[storeName] = (storeMap[storeName] ?? 0) + it.line_total;
+    const lineTotal = toNum(it.line_total);
+    storeMap[storeName] = (storeMap[storeName] ?? 0) + lineTotal;
   });
 
   // কোনো আইটেম unavailable থাকলে চেকআউট ডিসেবল
-  const hasUnavailable = items.some((i) => !i.available);
+  const hasUnavailable = preview.items.some((i) => !i.available);
 
   return (
     <div className="rounded-lg border border-border bg-card p-6 mt-6">

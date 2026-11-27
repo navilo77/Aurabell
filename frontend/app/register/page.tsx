@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { redirectByRole } from "@/lib/auth";
+import { useAuth } from "@/lib/auth-context";
 import { UserRole } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { refetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -54,7 +55,16 @@ export default function RegisterPage() {
           roles: UserRole[];
           store_ids: string[];
         }>("/users/me");
-        redirectByRole(user.roles);
+        // Refresh auth context
+        await refetch();
+        // Redirect based on role
+        if (user.roles.includes("super_admin")) {
+          router.push("/super-admin");
+        } else if (user.roles.includes("store_manager") || user.roles.includes("owner")) {
+          router.push("/store-admin");
+        } else {
+          router.push("/");
+        }
       } catch {
         // No session (email confirmation required) -> remain unauthenticated
         router.push("/login?registered=1");

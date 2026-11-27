@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { apiFetch } from "@/lib/api";
-import { redirectByRole } from "@/lib/auth";
+import { useAuth } from "@/lib/auth-context";
 import { UserRole } from "@/lib/types";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refetch } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +33,16 @@ export default function LoginPage() {
         roles: UserRole[];
         store_ids: string[];
       }>("/users/me");
-      redirectByRole(user.roles);
+      // Refresh auth context
+      await refetch();
+      // Redirect based on role
+      if (user.roles.includes("super_admin")) {
+        router.push("/super-admin");
+      } else if (user.roles.includes("store_manager") || user.roles.includes("owner")) {
+        router.push("/store-admin");
+      } else {
+        router.push("/");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

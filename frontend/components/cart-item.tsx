@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 
 // কার্ট আইটেমের টাইপ — ব্যাকএন্ড থেকে আসা ডেটার ধরন
 interface CartItemData {
@@ -22,6 +23,10 @@ interface Props {
 
 // কার্টে একটি পণ্যের সারি — ছবি, নাম, দাম, পরিমাণ বাটন, মুছে ফেলার বাটন
 export function CartItem({ item, onQuantityChange, onRemove }: Props) {
+  const toNum = (v: unknown): number => (typeof v === "number" ? v : Number(v)) || 0;
+  const price = toNum(item.price);
+  const lineTotal = price * item.quantity;
+
   const handleDecrement = () => {
     if (item.quantity > 1) {
       onQuantityChange(item.variant_id, item.quantity - 1);
@@ -34,9 +39,11 @@ export function CartItem({ item, onQuantityChange, onRemove }: Props) {
   return (
     <div className="flex items-center gap-4 p-4 border-b border-border">
       {/* পণ্যের ছবি */}
-      <img
+      <Image
         src={item.image_url ?? "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=80&h=80&fit=crop"}
         alt={item.product_name}
+        width={64}
+        height={64}
         className="w-16 h-16 rounded-md object-cover bg-muted"
       />
 
@@ -52,7 +59,7 @@ export function CartItem({ item, onQuantityChange, onRemove }: Props) {
 
       {/* দাম */}
       <div className="text-sm font-medium text-foreground whitespace-nowrap">
-        ৳{item.price.toFixed(2)}
+        ৳{price.toFixed(2)}
       </div>
 
       {/* পরিমাণ নিয়ন্ত্রণ */}
@@ -77,7 +84,7 @@ export function CartItem({ item, onQuantityChange, onRemove }: Props) {
 
       {/* লাইন টোটাল */}
       <div className="font-semibold text-foreground whitespace-nowrap w-20 text-right">
-        ৳{(item.price * item.quantity).toFixed(2)}
+        ৳{lineTotal.toFixed(2)}
       </div>
 
       {/* মুছে ফেলার বাটন */}
