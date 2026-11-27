@@ -352,4 +352,38 @@ flowchart LR
 
 ---
 
+
+
+---
+
+## BE Milestones — Backend ↔ Frontend Contract Alignment
+
+> **Source:** BACKEND_FRONTEND_CONTRACT_AUDIT.md + DOCUMENTATION_RECONCILIATION_REPORT.md
+> **Authority:** AD-001 through AD-010 (Approved Architecture Decisions)
+
+These BE milestones address API contract stabilization, catalog enhancements, checkout address reconciliation, and subsequent backend capabilities identified during the Backend ↔ Frontend Contract Audit (2026-11-25).
+
+| Milestone | Title | Status | Verified By | Report |
+|---|---|---|---|---|
+| **BE-01** | API Contract Stabilization (pagination, sorting, filtering, format=v2) | APPROVED | Kilo Code — 15 unit tests pass | BE_01_VERIFICATION_REPORT.md |
+| **BE-02** | Store & Catalog Enhancements (filters, search, price sorting, public profiles) | APPROVED | Kilo Code — 10 unit tests pass | BE_02_VERIFICATION_REPORT.md |
+| **BE-03** | Checkout Address Reconciliation (saved + inline address, immutable snapshot) | APPROVED | Kilo Code — 16 unit tests pass | BE_03_VERIFICATION_REPORT.md |
+| **BE-04** | Orders & Account Completion (timeline, cancel, full order list, admin status) | APPROVED | Kilo Code — 20 unit tests pass | BE_04_VERIFICATION_REPORT.md |
+| **BE-05** | Admin Backend Completion (dashboard, user mgmt, reports) | APPROVED | Kilo Code — 17 unit tests pass | BE_05_VERIFICATION_REPORT.md |
+| **BE-06** | Community/Chat Backend (conversations, messages, realtime) | PLANNED | — | — |
+| **BE-07** | Payment Gateway (AmarPay) | IMPLEMENTED-BLOCKED | 2026-11-25 | 14 unit tests |
+| **BE-08** | Reliability & Production Hardening | IMPLEMENTED-BLOCKED | 2026-11-25 | 8 unit tests |
+
+### BE Milestone Dependency Graph
+
+    BE-01 --> BE-02
+    BE-01 --> BE-03
+    BE-02 --> BE-03
+    BE-03 --> BE-04
+    BE-02 --> BE-05
+    BE-04 --> BE-05
+    BE-01 --> BE-06
+    BE-06 --> BE-08
+    BE-07 --> BE-08
+    BE-05 --> BE-08
 > **সংকেতের অপেক্ষায়**: ওনার নির্দেশ দিলে অবিলম্বে **M1.1 (Backend Repository & Config Scaffolding)** বাস্তবায়ন শুরু হবে এবং কাজ শেষ হওয়ার সাথে সাথে এই চেকলিস্ট আপডেট করা হবে।
