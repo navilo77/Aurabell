@@ -75,7 +75,11 @@ class Settings(BaseSettings):
     # Security
     SESSION_SECRET_KEY: str | None = None
     SESSION_COOKIE_SECURE: bool = False
+    # SameSite must stay "lax" in production — "strict" breaks AmarPay
+    # payment redirects (cross-site top-level navigation).
     SESSION_COOKIE_SAMESITE: str = "lax"
+    SESSION_COOKIE_DOMAIN: str | None = None
+    SESSION_COOKIE_MAX_AGE: int = 3600
 
     model_config = SettingsConfigDict(
         env_file=".env",

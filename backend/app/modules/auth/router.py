@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import AuthError
 from app.modules.auth.schema import (
@@ -35,8 +36,8 @@ async def login(credentials: UserLogin, response: Response) -> Token:
         token = await get_auth_service().login(credentials)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
-    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
-    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=True, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, domain=settings.SESSION_COOKIE_DOMAIN, path="/", max_age=token.expires_in)
+    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, domain=settings.SESSION_COOKIE_DOMAIN, path="/", max_age=settings.SESSION_COOKIE_MAX_AGE)
     return token
 
 
@@ -99,8 +100,8 @@ async def verify_otp(data: OTPVerify, response: Response) -> Token:
         token = await get_auth_service().verify_otp(data)
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
-    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
-    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=True, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, domain=settings.SESSION_COOKIE_DOMAIN, path="/", max_age=token.expires_in)
+    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, domain=settings.SESSION_COOKIE_DOMAIN, path="/", max_age=settings.SESSION_COOKIE_MAX_AGE)
     return token
 
 
@@ -137,8 +138,8 @@ async def refresh_token(
         )
     except AuthError as e:
         raise HTTPException(status_code=e.status_code, detail={"detail": e.message, "code": e.code}) from e
-    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=True, samesite="strict", path="/", max_age=token.expires_in)
-    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=True, samesite="strict", path="/", max_age=60 * 60 * 24 * 7)
+    response.set_cookie("aura_access_token", token.access_token, httponly=True, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, domain=settings.SESSION_COOKIE_DOMAIN, path="/", max_age=token.expires_in)
+    response.set_cookie("aura_refresh_token", token.refresh_token, httponly=True, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, domain=settings.SESSION_COOKIE_DOMAIN, path="/", max_age=settings.SESSION_COOKIE_MAX_AGE)
     return token
 
 
@@ -163,7 +164,7 @@ async def logout(
             await get_auth_service().logout(token)
         except Exception:
             pass
-    response.delete_cookie("aura_access_token", path="/")
-    response.delete_cookie("aura_refresh_token", path="/")
+    response.delete_cookie("aura_access_token", path="/", domain=settings.SESSION_COOKIE_DOMAIN, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, httponly=True)
+    response.delete_cookie("aura_refresh_token", path="/", domain=settings.SESSION_COOKIE_DOMAIN, secure=settings.SESSION_COOKIE_SECURE, samesite=settings.SESSION_COOKIE_SAMESITE, httponly=True)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response

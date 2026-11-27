@@ -262,6 +262,45 @@ class TestLogoutCookieClearing:
         assert "aura_refresh_token" in cookie_names
 
 
+# ─── Login Cookie Attributes (P-02 regression guard) ─────────────────────────
+
+
+class TestLoginCookieAttributes:
+    """Tests that login sets cookies with correct attributes (P-02)."""
+
+    @pytest.mark.asyncio
+    async def test_login_sets_cookie_attributes(self) -> None:
+        """Set-Cookie must include HttpOnly, SameSite=Lax, Path=/; Secure only when configured."""
+        from app.modules.auth.router import login
+        from app.modules.auth.schema import Token, UserLogin
+        from app.core.config import settings
+        from fastapi import Response
+
+        token = Token(access_token="access-x", refresh_token="refresh-x", expires_in=3600)
+        auth_service = MagicMock()
+        auth_service.login = AsyncMock(return_value=token)
+
+        response = Response()
+        with patch("app.modules.auth.router.get_auth_service", return_value=auth_service):
+            await login(
+                UserLogin(email="user@example.com", password="TestPass123!"),
+                response,
+            )
+
+        headers = response.headers.getlist("set-cookie")
+        access = next(h for h in headers if h.startswith("aura_access_token="))
+        refresh = next(h for h in headers if h.startswith("aura_refresh_token="))
+        for header in (access, refresh):
+            assert "HttpOnly" in header
+            assert "samesite=lax" in header.lower()
+            assert "Path=/" in header
+        # Secure flag must reflect SESSION_COOKIE_SECURE (False in dev)
+        if settings.SESSION_COOKIE_SECURE:
+            assert "Secure" in access
+        else:
+            assert "Secure" not in access
+
+
 # ─── Registration + Profile Creation ────────────────────────────────────────
 
 
