@@ -139,6 +139,48 @@ vitamin_c_variant_id = insert_variant(
     [vitamin_c_serum_id, "VITC-SERUM-30ML", "30ml", '{"size":"30ml"}', "1234567890130", True],
 )
 
+# ── Product Images ──────────────────────────────────────────────────────
+def insert_image(sql, params):
+    cur.execute(sql, params)
+    return cur.fetchone()[0]
+
+
+insert_image(
+    "INSERT INTO public.product_images (product_id, image_url, alt_text, is_primary, sort_order) "
+    "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+    [
+        iphone_15_id,
+        "https://picsum.photos/seed/iphone-15/800/800",
+        "iPhone 15 Blue",
+        True,
+        0,
+    ],
+)
+
+insert_image(
+    "INSERT INTO public.product_images (product_id, image_url, alt_text, is_primary, sort_order) "
+    "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+    [
+        macbook_pro_id,
+        "https://picsum.photos/seed/macbook-pro/800/800",
+        "MacBook Pro Space Gray",
+        True,
+        0,
+    ],
+)
+
+insert_image(
+    "INSERT INTO public.product_images (product_id, image_url, alt_text, is_primary, sort_order) "
+    "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+    [
+        vitamin_c_serum_id,
+        "https://picsum.photos/seed/vitamin-c-serum/800/800",
+        "Vitamin C Serum 30ml",
+        True,
+        0,
+    ],
+)
+
 # ── Product Prices ──────────────────────────────────────────────────────
 cur.execute(
     "INSERT INTO public.product_prices (variant_id, currency_code, selling_price, compare_at_price, effective_from, effective_until, is_active) "
